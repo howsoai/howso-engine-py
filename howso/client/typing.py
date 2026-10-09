@@ -246,36 +246,25 @@ class FeatureTimeSeries(TypedDict, total=False):
     """
 
 class ProtectedValueMultiplier(TypedDict):
-    """A single protected value paired with its case-weight multiplier."""
+    """A single feature value paired with its case-weight multiplier."""
 
     value: Any
-    """The feature value to protect during data distillation."""
+    """The feature value whose cases are reweighted during data distillation."""
 
     multiplier: float
     """The case-weight multiplier applied to cases holding this value."""
 
 
 class FeatureRareValueConfig(TypedDict):
-    """A rare-value preservation configuration for a single feature."""
+    """A computed rare-value preservation configuration for a single feature."""
 
-    protected_values_multipliers: list[ProtectedValueMultiplier]
-    """The protected values and their individual case-weight multipliers."""
-
-    unprotected_multiplier: NotRequired[float]
-    """The case-weight multiplier applied to all non-protected values of the feature."""
-
-
-class DeferredFeatureValueConfig(TypedDict):
+    value_weight_multipliers: list[ProtectedValueMultiplier]
     """
-    Rare values marked for protection whose case-weight multipliers are not yet computed.
+    The case-weight multipliers of the feature's values, as written to the feature's attributes.
 
-    Written to a feature's ``preserve_rare_values`` attribute when protected values are
-    supplied without a ``max_distilled_cases`` value; the multipliers are resolved later
-    in the stack.
+    Rare values are listed with multipliers above 1 and the values that fund them with
+    multipliers below 1. A value that is not listed keeps a multiplier of 1.
     """
-
-    protected_values: list[Any]
-    """The feature values to protect during data distillation."""
 
 
 class FeatureAttributes(TypedDict):
@@ -507,14 +496,6 @@ class FeatureAttributes(TypedDict):
     post_process: NotRequired[str]
     """Custom Amalgam code that is called on resulting values of this feature during react operations."""
 
-    preserve_rare_values: NotRequired[FeatureRareValueConfig | DeferredFeatureValueConfig]
-    """
-    Configuration for preserving rare values during data distillation.
-
-    Either a fully-computed config with case-weight multipliers, or a deferred config
-    listing only the protected values (when multipliers have not yet been computed).
-    """
-
     recursive_matching: NotRequired[bool]
     """
     Whether operations work recursively on feature values.
@@ -564,6 +545,15 @@ class FeatureAttributes(TypedDict):
     unique: NotRequired[bool]
     """Flag feature as only having unique values. Only applicable to nominal features."""
 
+    value_weight_multipliers: NotRequired[list[ProtectedValueMultiplier]]
+    """
+    Case-weight multipliers applied at train time to cases holding the listed values of this feature.
+
+    A value that is not listed keeps a multiplier of 1. Rare value preservation writes multipliers
+    above 1 for the rare values and below 1 for the values that fund them, so that the total case
+    weight of the feature is unchanged.
+    """
+
 
 class TaskProgress(TypedDict):
     details: str
@@ -609,13 +599,39 @@ Persistence: TypeAlias = Literal["allow", "always", "never"]
 """Valid values for ``persistence`` parameters."""
 
 PreserveRareValuesMap: TypeAlias = dict[str, list[Any]]
-"""Map of feature name to a list of values to protect during data distillation."""
+"""Map of feature name to a list of values to protect during data distillation, their multipliers to be computed."""
+
+PreserveRareValuesCaps: TypeAlias = Union[Sequence[str], Mapping[str, float]]
+"""
+Features whose significant values keep part of their case weight when funding rare value preservation.
+
+A sequence of feature names applies the default cap to each; a mapping gives each feature the largest
+share of its weight a significant value may give up.
+"""
 
 PreserveRareValuesConfig: TypeAlias = dict[str, list[ProtectedValueMultiplier]]
-"""Map of feature name to a list of protected values with case-weight multipliers."""
+"""Map of feature name to a list of rare values with the case-weight multipliers they should receive."""
 
 FullPreserveRareValuesConfig: TypeAlias = dict[str, FeatureRareValueConfig]
-"""Map of feature name to a complete rare-value configuration (protected and unprotected multipliers)."""
+"""Map of feature name to a complete rare-value configuration, with every multiplier computed."""
+
+FeatureRareValues: TypeAlias = Union[Sequence[Any], Sequence[ProtectedValueMultiplier], FeatureRareValueConfig]
+"""
+The rare value specification of one feature in ``preserve_rare_values``.
+
+A sequence of values to protect, whose multipliers are computed; a sequence of values paired with
+the multipliers they should receive, with the multipliers of the feature's other values computed to
+fund them; or a complete configuration with a ``value_weight_multipliers`` list, used as given.
+"""
+
+PreserveRareValues: TypeAlias = Union[Mapping[str, FeatureRareValues], Sequence[str], Literal["all", "off"]]
+"""
+The accepted forms of ``preserve_rare_values``.
+
+A mapping specifies the rare values of each feature; a sequence of feature names protects every
+rare value candidate of those features; "all" does so for every nominal feature; "off" disables
+rare value preservation, including its suggestion.
+"""
 
 Precision: TypeAlias = Literal["exact", "similar"]
 """Valid values for ``precision`` parameters."""

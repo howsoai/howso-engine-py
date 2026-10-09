@@ -1765,60 +1765,62 @@ def get_hash(value: Any) -> int:
     return mmh3.hash128(pickled)
 
 
-def get_optimized_max_chunk_size(
+def get_optimized_partition_size(
     *,
     row_count: int,
-    max_chunk_size: int,
-    min_chunk_size: int | None = None,
+    max_partition_size: int,
+    min_partition_size: int | None = None,
 ) -> tuple[int, int]:
-    """Optimize chunk_size such that the number of chunks is a power of 2.
+    """Size equal partitions of ``row_count`` rows so that their number is a power of 2.
 
-    Computes the power-of-2 chunk count that yields the largest chunk size
-    less than or equal to ``max_chunk_size``. The ``min_chunk_size`` floor
-    may force the result above ``max_chunk_size`` when the two constraints
-    conflict.
+    Computes the power-of-2 partition count that yields the largest partition
+    size less than or equal to ``max_partition_size``. The ``min_partition_size``
+    floor may force the result above ``max_partition_size`` when the two
+    constraints conflict.
+
+    A power-of-2 partition count produces optimal results for federated
+    learning, and the same rounding is applied to a distillation target so
+    that rare value weights match the size the data is distilled to.
 
     Parameters
     ----------
     row_count : int
-        The total number of rows to chunk.
-    max_chunk_size : int
-        The maximum desired chunk size. The result will be ``<=`` this value
-        unless capped by ``min_chunk_size``.
-    min_chunk_size : int, default 1
+        The total number of rows to partition.
+    max_partition_size : int
+        The maximum desired partition size. The result will be ``<=`` this
+        value unless capped by ``min_partition_size``.
+    min_partition_size : int, default 1
         The minimum size to return.
 
     Returns
     -------
-    ideal_chunk_size : int
-        The optimized number of rows per chunk. This chunk size will result in
-        some power of 2 chunks in total -- which produces optimal results for
-        Federated Learning.
-    num_chunks : int
-        The number of chunks (a power of 2)
+    partition_size : int
+        The number of rows per partition.
+    num_partitions : int
+        The number of partitions (a power of 2).
     """
     # This is necessary because `None` may be explicitly passed in.
-    min_chunk_size = min_chunk_size or 1
+    min_partition_size = min_partition_size or 1
 
     # Clamp max up to the floor so the rest of the algorithm preserves the
-    # power-of-2 invariant. Also avoids a ZeroDivisionError on max_chunk_size = 0.
-    max_chunk_size = max(max_chunk_size, min_chunk_size)
+    # power-of-2 invariant. Also avoids a ZeroDivisionError on max_partition_size = 0.
+    max_partition_size = max(max_partition_size, min_partition_size)
 
-    # 2 ** floor(log2(row_count / min_chunk_size)), but stays in integer math.
-    max_num_chunks = (
-        1 << (row_count // min_chunk_size).bit_length() - 1
-        if row_count >= min_chunk_size
+    # 2 ** floor(log2(row_count / min_partition_size)), but stays in integer math.
+    max_num_partitions = (
+        1 << (row_count // min_partition_size).bit_length() - 1
+        if row_count >= min_partition_size
         else 1
     )
 
-    # Smallest power of 2 >= ceil(row_count / max_chunk_size), so that
-    # ceil(row_count / num_chunks) <= max_chunk_size.
-    needed_chunks = -(-row_count // max_chunk_size)
-    ideal_num_chunks = 1 << (needed_chunks - 1).bit_length() if needed_chunks > 1 else 1
+    # Smallest power of 2 >= ceil(row_count / max_partition_size), so that
+    # ceil(row_count / num_partitions) <= max_partition_size.
+    needed_partitions = -(-row_count // max_partition_size)
+    ideal_num_partitions = 1 << (needed_partitions - 1).bit_length() if needed_partitions > 1 else 1
 
-    num_chunks = min(ideal_num_chunks, max_num_chunks)
+    num_partitions = min(ideal_num_partitions, max_num_partitions)
 
     # math.ceil, except stays in integer math
-    ideal_chunk_size = -(-row_count // num_chunks)
+    partition_size = -(-row_count // num_partitions)
 
-    return ideal_chunk_size, num_chunks
+    return partition_size, num_partitions

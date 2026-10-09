@@ -410,38 +410,97 @@ DEFAULT_MAX_DISTILLED_CASES_CAVEAT = "default_max_distilled_cases"
 """Caveat code for rare value multipliers computed from a default ``max_distilled_cases``."""
 
 _DEFAULT_MAX_DISTILLED_CASES_MESSAGE = (
-    "The computed case weights for rare value multipliers are likely inaccurate as "
-    "`max_distilled_cases` was not provided to `infer_feature_attributes`. Please provide "
-    "this parameter or be aware that the case weight multipliers were computed based on a "
-    "default `max_distilled_cases` value of 50,000. "
-    "An accurate `max_distilled_cases` enables Howso to correctly weight the influence of rare "
-    "values in the data, since the weighting is calibrated proportionally to the number of cases "
-    "remaining after distillation."
+    "`max_distilled_cases` was not provided to `infer_feature_attributes`, so the rare value multipliers "
+    "were computed for a default target of 50,000 cases.\n"
+    "Distilling to a different size will under-weight or over-weight the rare values. Provide "
+    "`max_distilled_cases` for accurate weights."
 )
 
 _MAX_RANKED_VALUES = 5
+
+PARTIAL_RARE_VALUE_PRESERVATION_CAVEAT = "partial_rare_value_preservation"
+"""Caveat code for a feature whose rare values could not all be preserved."""
+
+
+class RareValuePreservationLimit(TypedDict):
+    """How the preservation of a feature's rare values was limited by the case weight available to fund it."""
+
+    feature: str
+    """The name of the feature."""
+
+    preserved: int
+    """The number of rare values that received their full multiplier."""
+
+    candidates: int
+    """The number of rare values that were to be preserved."""
+
+    min_max_distilled_cases: int | None
+    """The smallest `max_distilled_cases` at which every candidate fits, or None when not applicable."""
+
+    multiplier_scale: float | None
+    """The factor applied to each multiplier's increase over 1 when every value was kept but scaled down, else None."""
+
+
+def partial_rare_value_preservation_message(limit: RareValuePreservationLimit) -> str:
+    """
+    Describe a :class:`RareValuePreservationLimit` in a sentence.
+
+    Parameters
+    ----------
+    limit : RareValuePreservationLimit
+        The limited feature.
+
+    Returns
+    -------
+    str
+        A plain-text description of what was preserved and how to preserve more.
+    """
+    message = (f"Preserved {limit['preserved']:,} of the {limit['candidates']:,} rare values of feature "
+               f"`{limit['feature']}`")
+    if limit["min_max_distilled_cases"] is not None:
+        message += (f"; preserving all of them needs a `max_distilled_cases` of at least "
+                    f"{limit['min_max_distilled_cases']:,}, or fewer named values.")
+    else:
+        message += "."
+    return message + ("\nIts other values cannot give up enough case weight for the rest without losing their own "
+                      "significance.")
 
 
 class PRVSuggestion(IFASuggestion):
     """A suggestion to configure preservation for rare values."""
 
     def __init__(self, prvc: FullPreserveRareValuesConfig, values_ranking: Sequence[Mapping[str, Any]],
-                 user_set_max_distilled_cases: bool) -> None:
+                 user_set_max_distilled_cases: bool, *,
+                 protected_values: PreserveRareValuesMap | None = None,
+                 limits: Sequence[RareValuePreservationLimit] | None = None) -> None:
         """
         Instantiate this Preserve Rare Values Suggestion.
 
         Parameters
         ----------
         prvc : FullPreserveRareValuesConfig
-            A full rare values preservation config with protected and unprotected multipliers.
+            A full rare values preservation config, with the multipliers of every reweighted value.
         values_ranking : Sequence of Mapping
             An ordered list of the top five most significant rare values found in the data.
         user_set_max_distilled_cases : bool
             Whether the user specified the max_distilled_cases value, or `prvc` was approximated with a default.
+        protected_values : PreserveRareValuesMap, optional
+            The rare values of each feature in `prvc` that are weighted up. `prvc` also lists the
+            values that fund them, at multipliers below 1. Defaults to every value listed in `prvc`
+            with a multiplier above 1.
+        limits : Sequence of RareValuePreservationLimit, optional
+            The features in `prvc` whose rare values could not all be preserved.
         """
         self._prvc = prvc
         self._ranking = values_ranking
         self._user_set_mdc = user_set_max_distilled_cases
+        if protected_values is None:
+            protected_values = {
+                feature: [entry["value"] for entry in config["value_weight_multipliers"] if entry["multiplier"] > 1]
+                for feature, config in prvc.items()
+            }
+        self._protected_values = protected_values
+        self._limits = list(limits or [])
 
     def __repr__(self) -> str:
         """Print a helpful description of this IFASuggestion."""
@@ -449,21 +508,24 @@ class PRVSuggestion(IFASuggestion):
         candidates_explanation = ""
         for candidate in details["top_values"]:
             candidates_explanation += f"\n    - Column name: {candidate['feature']}, value: {candidate['value']}"
-        if self.can_apply:
-            candidates_explanation += (f"\n\nIn total, we identified {details['num_values']} values that may be "
-                                       "lost during data distillation.")
+        candidates_explanation += (
+            f"\n\nIn total, we identified {_count(details['num_values'], 'value')} across "
+            f"{_count(details['num_candidate_features'], 'column')} that may be lost during data distillation, "
+            f"of which {_count(details['num_preserved'], 'value')} across "
+            f"{_count(details['num_features'], 'column')} can be preserved at this `max_distilled_cases`."
+        )
         header = "Rare Value Preservation"
         body = (
             "Here are some values in your data that may be good candidates for Rare Value Preservation:\n"
             f"{candidates_explanation}\n\n"
             "During data distillation workflows, nominal values with weak but detectable signals may "
             "be filtered out. To account for this, you may provide to `infer_feature_attributes` a "
-            "`preserve_rare_values_map` detailing rare values to protect automatically, or a full "
-            "`preserve_rare_values_config` with fine-grained case weight adjustments. Additionally, "
+            "`preserve_rare_values` mapping detailing the rare values to protect, with the case weight "
+            "multipliers computed automatically or given for fine-grained adjustments. Additionally, "
             "you may apply our suggested configuration for all detected possible rare values to this "
             "feature attributes object. Applying Rare Value Preservation may increase the influence "
             "of rare values on the aggregate signal of the dataset. This is the intended effect to help "
-            "preserve the signal of rare values that would otherwise be lost during distillation. "
+            "preserve the signal of rare values that would otherwise be lost during distillation."
         )
 
         # Pick a target total width and divvy it up
@@ -480,27 +542,35 @@ class PRVSuggestion(IFASuggestion):
         # Only suggest this option if the user actually set the `max_distilled_cases` value,
         # otherwise the computed multipliers may be very incorrect and should only be used
         # as examples.
+        rows.append((
+            "Preserve every rare value candidate",
+            'Pass "all" as `preserve_rare_values` to preserve every rare value candidate of every '
+            "feature, or a list of feature names to preserve the candidates of those features only. "
+            "Requires `max_distilled_cases`.",
+            "Call `infer_feature_attributes` with: "
+            '`preserve_rare_values="all"` (or a list of feature names) and `max_distilled_cases`'
+        ))
+
         if self.can_apply:
             rows.append((
                 "Apply suggestion to this feature attributes object",
-                "Save the suggested candidate `preserve_rare_values_config` "
-                "to this feature attributes object.",
+                "Save the suggested value weight multipliers to this feature attributes object.",
                 "Call `apply_suggestion()` on the feature attributes object: "
                 '`apply_suggestion("preserve_rare_values")`'
             ))
 
         rows.extend([
             (
-                "Get a reusable `preserve_rare_values_config`",
-                "You may provide a pre-computed `preserve_rare_values_config` as a parameter to "
+                "Get a reusable configuration",
+                "You may pass the complete configuration as `preserve_rare_values` to "
                 "`infer_feature_attributes` if you wish to make adjustments to the case weight "
                 "multipliers.",
                 "From this suggestion object call: "
                 "`get_config()`"
             ),
             (
-                "Edit the preserved rare values with a `preserve_rare_values_map`",
-                "The rare values to be preserved can be detailed via the `preserve_rare_values_map` "
+                "Edit the preserved rare values",
+                "The rare values to be preserved can be detailed via the `preserve_rare_values` "
                 'parameter to `infer_feature_attributes`. A good starting point may be the "full" '
                 "map of all candidate values. All case weight multipliers will be automatically "
                 "configured for the provided values.",
@@ -518,8 +588,39 @@ class PRVSuggestion(IFASuggestion):
 
         console = Console(width=total_width)
         with console.capture() as capture:
+            if self._limits:
+                console.print(self._limits_table(total_width))
             console.print(options_table)
         return f"{header}\n\n{wrap_paragraphs(body, total_width)}\n\n{capture.get().rstrip()}"
+
+    def _limits_table(self, width: int) -> Table:
+        """
+        Render the features whose rare values could not all be preserved as a table.
+
+        Parameters
+        ----------
+        width : int
+            The total width of the table.
+
+        Returns
+        -------
+        Table
+            One row per limited feature: how many of its rare values are preserved, and the smallest
+            `max_distilled_cases` at which all of them would be.
+        """
+        table = Table(title="Rare Values That Cannot Be Preserved at This `max_distilled_cases`",
+                      show_lines=True, width=width)
+        table.add_column("Feature", overflow="fold")
+        table.add_column("Rare values preserved", justify="right")
+        table.add_column("Smallest `max_distilled_cases` that preserves all", justify="right")
+        for limit in self._limits:
+            needed = limit["min_max_distilled_cases"]
+            table.add_row(
+                str(limit["feature"]),
+                f"{limit['preserved']:,} of {limit['candidates']:,}",
+                f"{needed:,}" if needed is not None else "none",
+            )
+        return table
 
     @property
     def name(self) -> str:
@@ -533,61 +634,107 @@ class PRVSuggestion(IFASuggestion):
 
     @property
     def summary(self) -> str:
-        """A one-line statement of the rare values found."""
+        """
+        A one-line statement of the rare values found.
+
+        Leads with the values the suggested multipliers preserve, which is what applying the
+        suggestion writes; candidates that cannot be funded at this ``max_distilled_cases`` are
+        counted separately, so that the headline matches the result of applying.
+        """
         details = self.details
-        return (f"Found {_count(details['num_values'], 'rare value')} across "
-                f"{_count(details['num_features'], 'column')} "
-                "whose signal may be lost during data distillation workflows")
+        unfunded = details["num_values"] - details["num_preserved"]
+        unfunded_features = sum(1 for limit in self._limits if limit["preserved"] < limit["candidates"])
+        if details["num_preserved"] == 0:
+            return (f"Found {_count(details['num_values'], 'rare value')} across "
+                    f"{_count(details['num_candidate_features'], 'column')} whose signal may be lost during data "
+                    "distillation, none of which can be preserved at this `max_distilled_cases`")
+        statement = (f"Found {_count(details['num_preserved'], 'rare value')} across "
+                     f"{_count(details['num_features'], 'column')} that can be preserved during data distillation")
+        if unfunded:
+            statement += (f", and {unfunded:,} more across {_count(unfunded_features, 'column')} that cannot be "
+                          "preserved at this `max_distilled_cases`")
+        return statement
 
     @property
     def can_apply(self) -> bool:
-        """Whether the multipliers can be applied, which requires a user-provided ``max_distilled_cases``."""
-        return self._user_set_mdc
+        """
+        Whether the multipliers can be applied.
+
+        Requires a user-provided ``max_distilled_cases`` and at least one feature whose rare values
+        could be funded.
+        """
+        return self._user_set_mdc and bool(self._prvc)
 
     @property
     def caveats(self) -> list[SuggestionCaveat]:
-        """A caveat when the multipliers were computed from a default ``max_distilled_cases``."""
-        if self._user_set_mdc:
-            return []
-        return [{"code": DEFAULT_MAX_DISTILLED_CASES_CAVEAT, "message": _DEFAULT_MAX_DISTILLED_CASES_MESSAGE}]
+        """
+        Caveats on the suggested multipliers.
+
+        Reports when the multipliers were computed from a default ``max_distilled_cases``, and each
+        feature whose rare values could not all be preserved.
+        """
+        caveats: list[SuggestionCaveat] = []
+        if not self._user_set_mdc:
+            caveats.append({"code": DEFAULT_MAX_DISTILLED_CASES_CAVEAT,
+                            "message": _DEFAULT_MAX_DISTILLED_CASES_MESSAGE})
+        caveats.extend({"code": PARTIAL_RARE_VALUE_PRESERVATION_CAVEAT,
+                        "message": partial_rare_value_preservation_message(limit)} for limit in self._limits)
+        return caveats
 
     @property
     def details(self) -> dict[str, Any]:
         """
         The rare values found.
 
-        Contains ``num_values``, ``num_features`` and ``top_values``, the most frequent
-        candidates as dicts of ``feature``, ``value`` and ``count``, most frequent first.
+        Contains ``num_values``, the rare values found; ``num_preserved``, those the suggested
+        multipliers preserve; ``num_candidate_features``, the features with rare values;
+        ``num_features``, those whose rare values are preserved, which ``apply`` writes to;
+        ``limits``, one entry per feature whose rare values could not all be preserved;
+        ``top_values``, the most frequent candidates as dicts of ``feature``, ``value`` and
+        ``count``, most frequent first; and ``value_weight_multipliers``, the suggested
+        multipliers of each feature, as ``apply`` writes them to the feature attributes.
         """
+        num_preserved = sum(len(values) for values in self._protected_values.values())
+        not_preserved = sum(limit["candidates"] - limit["preserved"] for limit in self._limits)
+        candidate_features = set(self._prvc) | {limit["feature"] for limit in self._limits}
         return {
-            "num_values": sum(len(cfg["protected_values_multipliers"]) for cfg in self._prvc.values()),
+            "num_values": num_preserved + not_preserved,
+            "num_preserved": num_preserved,
+            "num_candidate_features": len(candidate_features),
             "num_features": len(self._prvc),
+            "limits": [dict(limit) for limit in self._limits],
             "top_values": [dict(candidate) for candidate in self._ranking],
+            "value_weight_multipliers": {
+                feature: [dict(entry) for entry in config["value_weight_multipliers"]]
+                for feature, config in self._prvc.items()
+            },
         }
 
     @property
     def parameters(self) -> dict[str, Any]:
-        """The suggested ``preserve_rare_values_config`` and the matching ``preserve_rare_values_map``."""
-        return {
-            "preserve_rare_values_config": self._prvc,
-            "preserve_rare_values_map": self._values_map(),
-        }
+        """
+        The rare values of each feature, as the ``preserve_rare_values`` argument that recomputes this suggestion.
 
-    def _warn_default_max_distilled_cases(self, addendum: str = "", stack_level: int = 4) -> None:
+        The complete configuration is under ``details``; it can be passed as ``preserve_rare_values``
+        too, and is then used as-is.
+        """
+        return {"preserve_rare_values": self._values_map()}
+
+    def _warn_default_max_distilled_cases(self, lead: str = "", stack_level: int = 4) -> None:
         """
         Warn that the case weight multipliers were computed from a default ``max_distilled_cases``.
 
         Parameters
         ----------
-        addendum : str, default ""
-            An additional sentence appended to the warning, describing the consequence for the
-            calling method.
+        lead : str, default ""
+            A sentence placed before the explanation, stating the consequence for the calling
+            method, so it is read first.
         stack_level : int, default 4
             The stack level value to pass into `warn` via `stacklevel`. The default attributes the
             warning to the caller of `apply_suggestion()`; methods a user calls directly pass 3.
         """
         warnings.warn(
-            _DEFAULT_MAX_DISTILLED_CASES_MESSAGE + addendum,
+            lead + _DEFAULT_MAX_DISTILLED_CASES_MESSAGE,
             UserWarning,
             stacklevel=stack_level,
         )
@@ -596,39 +743,44 @@ class PRVSuggestion(IFASuggestion):
         """Apply the computed rare values preservation config to the FeatureAttributesBase object."""
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(
-                " Since an inaccurate value may result in rare values being under-weighted or "
-                "over-weighted, this suggestion was not applied."
+                "This suggestion was not applied, since an inaccurate `max_distilled_cases` may leave rare "
+                "values under-weighted or over-weighted.\n"
             )
             return
+        if not self._prvc:
+            reasons = "\n".join(partial_rare_value_preservation_message(limit) for limit in self._limits)
+            warnings.warn("This suggestion was not applied: none of the rare values found can be preserved at this "
+                          f"`max_distilled_cases`.\n{reasons}", UserWarning, stacklevel=4)
+            return
         for feature, config in self._prvc.items():
-            attributes[feature]["preserve_rare_values"] = config
+            attributes[feature]["value_weight_multipliers"] = config["value_weight_multipliers"]
 
     def get_config(self, enable_warnings: bool = True) -> FullPreserveRareValuesConfig:
-        """Get the `preserve_rare_values_config` for use in future calls to `infer_feature_attributes`."""
+        """Get the complete configuration, to pass as `preserve_rare_values` to `infer_feature_attributes`."""
         if not self._user_set_mdc and enable_warnings:
             self._warn_default_max_distilled_cases(stack_level=3)
         return self._prvc
 
     def get_values_map(self) -> PreserveRareValuesMap:
-        """Get the `preserve_rare_values_map` for use in future calls to `infer_feature_attributes."""
+        """Get the rare values of each feature, to pass as `preserve_rare_values` to `infer_feature_attributes`."""
         if not self._user_set_mdc:
             self._warn_default_max_distilled_cases(stack_level=3)
         return self._values_map()
 
     def _values_map(self) -> PreserveRareValuesMap:
         """Get the protected values of each feature, without warning."""
-        return {
-            feature: [value_config["value"] for value_config in config["protected_values_multipliers"]]
-            for feature, config in self._prvc.items()
-        }
+        return {feature: list(values) for feature, values in self._protected_values.items()}
 
     def merge(self, other: IFASuggestion) -> None:
         """Merge another PRVSuggestion into this one if there are no conflicts."""
         if not isinstance(other, PRVSuggestion):
             raise TypeError(f"Cannot merge {type(other).__name__} into PRVSuggestion.")
+        limited_features = {limit["feature"] for limit in self._limits}
+        self._limits.extend(limit for limit in other._limits if limit["feature"] not in limited_features)
         for feature, config in other.get_config(enable_warnings=False).items():
             if feature not in self._prvc:
                 self._prvc[feature] = config
+                self._protected_values[feature] = other._protected_values[feature]
             elif self._prvc[feature] != config:
                 raise ValueError("Cannot merge `preserve_rare_value_config` objects as they share features with "
                                     "differing configurations.")

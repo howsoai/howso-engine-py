@@ -1,12 +1,13 @@
 """Tests the `infer_feature_attributes` package."""
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from copy import copy
 import datetime
 import json
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
+from typing import Any
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -14,11 +15,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from howso.client.typing import ProtectedValueMultiplier
 from howso.utilities.feature_attributes import infer_feature_attributes
 from howso.utilities.feature_attributes.base import FeatureAttributesBase, FLOAT_MAX, FLOAT_MIN, INTEGER_MAX
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
 from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 from howso.utilities.features import FeatureType
+from howso.utilities.utilities import get_optimized_partition_size
 
 if platform.system().lower() == "windows":
     DT_MAX = "6053-01-24"
@@ -1337,55 +1340,60 @@ def test_set_data():
         assert features["b"]["original_type"]["coercion"] == "set"
 
 
-def test_preserve_rare_values(capsys):
-    """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
-    # Manufacture some data
-    n = 100_000
-    features = ["a", "b", "i", "mass"]
-    data = []
-    for i in range(n):
-        mass = 1
-        percentile = i % 100
-        if percentile < 99:
-            a_val = "1"
-        else:
-            a_val = None
-        if percentile < 95:
-            b_val = "x"
-        elif percentile < 99:
-            b_val = "y"
-        else:
-            b_val = "z"
-        case = [a_val, b_val, i + 1, mass]
-        data.append(case)
+def _percentile_df(n: int = 100_000) -> pd.DataFrame:
+    """
+    Build cases whose nominal values depend on their position within each block of 100.
 
-    df = pd.DataFrame(data, columns=features)
+    Feature `a` is "1" except for the last percentile, which is null; feature `b` is "x" for the
+    first 95 percentiles, "y" for the next 4 and "z" for the last.
+    """
+    percentile = np.arange(n) % 100
+    return pd.DataFrame({
+        "a": np.where(percentile < 99, "1", None),
+        "b": np.select([percentile < 95, percentile < 99], ["x", "y"], default="z"),
+        "i": np.arange(1, n + 1),
+        "mass": 1,
+    })
+
+
+def test_preserve_rare_values(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
+    df = _percentile_df()
 
     # Test auto-apply with all values
-    features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values_map="all", max_workers=2)
-    assert "preserve_rare_values" in features["a"]
-    assert "preserve_rare_values" in features["b"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=1563, preserve_rare_values="all",
+                                            significance_threshold=30, max_workers=2)
+    assert "value_weight_multipliers" in features["a"]
+    assert "value_weight_multipliers" in features["b"]
     # The protected value we're looking here is actually "none"
-    assert features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["value"] is None
-    assert round(features["a"]["preserve_rare_values"]["protected_values_multipliers"][0]["multiplier"], 2) == 1.92
-    assert round(features["a"]["preserve_rare_values"]["unprotected_multiplier"], 2) == 0.99
+    assert _prv(features["a"])[0]["value"] is None
+    # The rare value keeps the significance threshold exactly: 30 * 100,000 / (1,563 * 1,000)
+    assert round(_multiplier(features["a"], None), 2) == 1.92
+    # The common value funds it, and is the only other value listed
+    assert round(_multiplier(features["a"], "1"), 2) == 0.99
+    assert set(_multipliers(features["a"])) == {None, "1"}
 
-    # All values, but multipliers should be deferred if `max_distilled_cases` not provided
-    features = infer_feature_attributes(df, preserve_rare_values_map={"a": [None]}, max_workers=2)
-    assert "preserve_rare_values" in features["a"]
-    assert features["a"]["preserve_rare_values"]["protected_values"][0] is None
+    # Without `max_distilled_cases` the values are weighted for the default target, and the user is told so
+    # even when, as here, the value keeps the threshold on its own at that target and needs nothing
+    with pytest.warns(UserWarning, match="rare values of `a` were weighted for an assumed distillation target"):
+        features = infer_feature_attributes(df, preserve_rare_values={"a": [None]}, max_workers=2)
+    assert "value_weight_multipliers" not in features["a"]
+    assert "preserve_rare_values" not in features["a"]
 
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        features = infer_feature_attributes(df, max_distilled_cases=1563)
+        features = infer_feature_attributes(df, max_distilled_cases=1563, significance_threshold=30)
     assert "Feature Attributes Summary" in capsys.readouterr().out
-    for feat in features:
-        assert "preserve_rare_values" not in feat
+    assert not any("value_weight_multipliers" in attrs for attrs in features.values())
     # Test a suggestion application
-    features.apply_suggestion("all")
-    assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
-    assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features.apply_suggestion("all")
+    assert "value_weight_multipliers" in features["a"]
+    assert "value_weight_multipliers" in features["b"]
 
     values_map = features.suggestions.preserve_rare_values.get_values_map()
     config = features.suggestions.preserve_rare_values.get_config()
@@ -1395,26 +1403,715 @@ def test_preserve_rare_values(capsys):
     prv = next(sug for sug in payload["suggestions"] if sug["name"] == "preserve_rare_values")
     assert prv["can_apply"] is True
     assert prv["caveats"] == []
-    assert prv["parameters"]["preserve_rare_values_map"] == values_map
-    assert set(prv["parameters"]["preserve_rare_values_config"]) == set(config)
+    assert prv["parameters"]["preserve_rare_values"] == values_map
+    assert set(prv["details"]["value_weight_multipliers"]) == set(config)
     assert prv["details"]["num_features"] == len(config)
     assert 0 < len(prv["details"]["top_values"]) <= 5
 
-    # Supplying the suggested values_map and config to IFA should result in no warnings
+    # Supplying the suggested config, or the values map with the same target, reproduces the suggestion silently
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        features = infer_feature_attributes(df, preserve_rare_values_config=config, enable_suggestions=False)
-        assert "protected_values_multipliers" in features["a"].get("preserve_rare_values", {})
-        assert "protected_values_multipliers" in features["b"].get("preserve_rare_values", {})
-        features = infer_feature_attributes(df, preserve_rare_values_map=values_map, enable_suggestions=False)
-        assert "protected_values" in features["a"].get("preserve_rare_values", {})
-        assert "protected_values" in features["b"].get("preserve_rare_values", {})
+        features = infer_feature_attributes(df, preserve_rare_values=config, enable_suggestions=False)
+        assert _prv(features["a"]) == config["a"]["value_weight_multipliers"]
+        assert _prv(features["b"]) == config["b"]["value_weight_multipliers"]
+        features = infer_feature_attributes(df, preserve_rare_values=values_map, max_distilled_cases=1563,
+                                            significance_threshold=30, enable_suggestions=False)
+        assert _multipliers(features["a"]) == pytest.approx(
+            {e["value"]: e["multiplier"] for e in config["a"]["value_weight_multipliers"]})
+        assert _multipliers(features["b"]) == pytest.approx(
+            {e["value"]: e["multiplier"] for e in config["b"]["value_weight_multipliers"]})
 
     # Test data with unhashable values
     df["unhashable"] = [[1, 2]] * len(df)  # lists are unhashable; value_counts will raise TypeError
 
     with pytest.warns(UserWarning, match="Could not process some value counts"):
         infer_feature_attributes(df, types={"unhashable": "nominal"})
+
+def _rare_values_df() -> pd.DataFrame:
+    """
+    100,000 cases where feature `a` has one common value, five rare values and two small values.
+
+    The rare values have 200 cases each, and the small values have 10 cases each, fewer than the
+    default significance threshold of 30.
+    """
+    values = (["common"] * 98_980 + [f"rare{i}" for i in range(5) for _ in range(200)]
+              + ["small0"] * 10 + ["small1"] * 10)
+    return pd.DataFrame({"a": values, "i": range(len(values))})
+
+
+def _prv(attributes: Mapping[str, Any]) -> list[ProtectedValueMultiplier]:
+    """Get a feature's computed value weight multipliers."""
+    return attributes["value_weight_multipliers"]
+
+
+def _multipliers(attributes: Mapping[str, Any]) -> dict[Any, float]:
+    """Get a feature's value weight multipliers, by value."""
+    return {cfg["value"]: cfg["multiplier"] for cfg in _prv(attributes)}
+
+
+def _multiplier(attributes: Mapping[str, Any], value: Any) -> float:
+    """Get the listed multiplier of one value of a feature."""
+    return _multipliers(attributes)[value]
+
+
+def _total_weight(df: pd.DataFrame, attributes: Mapping[str, Any], feature: str = "a") -> float:
+    """Compute the total case weight of a feature under its value weight multipliers."""
+    multipliers = _multipliers(attributes)
+    return sum(count * multipliers.get(value, 1.0) for value, count in df[feature].value_counts().items())
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
+@pytest.mark.parametrize("caps", [None, ["a"], {"a": 0.2}])
+@pytest.mark.parametrize("max_distilled_cases", [100, 300, 1_000])
+def test_preserve_rare_values_reweighted(max_workers: int, caps: list[str] | dict[str, float] | None,
+                                         max_distilled_cases: int) -> None:
+    """Test that rare values are lifted to the threshold, largest-first within what the common value can give."""
+    df = _rare_values_df()
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=max_distilled_cases)
+    floor = 30 * len(df) / target
+    # Uncapped, the common value can go down to the floor; capped, it keeps the capped share of its weight
+    cap = None if caps is None else (0.5 if isinstance(caps, list) else caps["a"])
+    budget = 98_980 - max(floor, (1 - cap) * 98_980 if cap is not None else 0)
+    expected_kept = min(5, int(budget // (floor - 200)))
+    if expected_kept < 5:
+        context = pytest.warns(UserWarning, match=f"Preserved {expected_kept} of the 5 rare values of feature `a`")
+    else:
+        context = warnings.catch_warnings()
+    with context:
+        if expected_kept == 5:
+            warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=max_distilled_cases, significance_threshold=30,
+                                            preserve_rare_values=["a"], preserve_rare_values_caps=caps,
+                                            max_workers=max_workers)
+    if expected_kept == 0:
+        assert "value_weight_multipliers" not in features["a"]
+        return
+    multipliers = _multipliers(features["a"])
+    kept = {value for value, multiplier in multipliers.items() if multiplier > 1}
+    assert len(kept) == expected_kept
+    assert kept <= {f"rare{i}" for i in range(5)}
+    # Only the kept rare values and the common value that funds them are listed; the small values and
+    # any rare value left at a multiplier of 1 are not
+    assert set(multipliers) == kept | {"common"}
+    for value in kept:
+        # Each kept rare value keeps exactly the threshold after distillation
+        assert multipliers[value] == pytest.approx(floor / 200)
+    used = expected_kept * (floor - 200)
+    assert multipliers["common"] == pytest.approx((98_980 - used) / 98_980)
+    if cap is not None:
+        assert multipliers["common"] >= 1 - cap
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+
+def test_preserve_rare_values_caps_validation():
+    """Test the checks on `preserve_rare_values_caps`."""
+    df = _rare_values_df()
+    with pytest.raises(ValueError,
+                       match="`preserve_rare_values_caps` names features that are not in the data: `missing`"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps=["missing"])
+    with pytest.raises(ValueError, match="must be greater than 0 and at most 1"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps={"a": 0})
+    with pytest.raises(ValueError, match="must be greater than 0 and at most 1"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps={"a": 1.5})
+    with pytest.raises(TypeError, match="list of feature names or a mapping"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps="a")
+
+
+def _two_rare_features_df() -> pd.DataFrame:
+    """Rare values in features `a`, `b` and the non-nominal `n`, with a column named `off`."""
+    df = _rare_values_df()
+    df["b"] = ["common"] * (len(df) - 200) + ["rare"] * 200
+    df["off"] = df["b"]
+    df["n"] = np.arange(len(df)) % 7 * 0.5
+    return df
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
+def test_preserve_rare_values_feature_name(max_workers: int) -> None:
+    """Test that naming a feature preserves all of its rare value candidates and no other feature's."""
+    df = _two_rare_features_df()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["b"],
+                                            max_workers=max_workers, types={"n": "continuous"})
+    assert "value_weight_multipliers" not in features["a"]
+    assert "value_weight_multipliers" not in features["off"]
+    assert set(_multipliers(features["b"])) == {"rare", "common"}
+    assert _multiplier(features["b"], "rare") > 1 > _multiplier(features["b"], "common")
+
+
+def test_preserve_rare_values_feature_names():
+    """Test that listing several features preserves the candidates of each, and no other feature's."""
+    df = _two_rare_features_df()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["a", "b"],
+                                            types={"n": "continuous"})
+    assert {f for f, attrs in features.items() if "value_weight_multipliers" in attrs} == {"a", "b"}
+
+
+def test_preserve_rare_values_feature_name_errors():
+    """Test the errors for a `preserve_rare_values` naming an unusable feature, or given as a bare string."""
+    df = _two_rare_features_df()
+    with pytest.raises(ValueError, match="not in the data"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["missing"])
+    with pytest.raises(ValueError, match="inferred to be continuous; rare values can only be set for nominal"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["n"],
+                                 types={"n": "continuous"})
+    with pytest.raises(ValueError, match="must also provide `max_distilled_cases`"):
+        infer_feature_attributes(df, preserve_rare_values=["a"])
+    # A feature name is passed in a list, never as a bare string, so a string is only ever "all" or "off"
+    with pytest.raises(ValueError, match='got the string "a"'):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="a")
+    with pytest.raises(TypeError, match="got int"):
+        infer_feature_attributes(df, max_distilled_cases=1_000,
+                                 preserve_rare_values=3)  # pyright: ignore[reportArgumentType]
+
+
+def test_preserve_rare_values_off():
+    """Test that "off" disables rare value preservation, including its suggestion."""
+    df = _two_rare_features_df()
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="off")
+    assert not any("value_weight_multipliers" in attrs for attrs in features.values())
+    assert "preserve_rare_values" not in features.suggestions.suggestions
+
+
+def test_preserve_rare_values_all():
+    """Test that "all" configures every feature with rare value candidates, without warnings."""
+    df = _two_rare_features_df()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="all",
+                                            types={"n": "continuous"})
+    assert {f for f, attrs in features.items() if "value_weight_multipliers" in attrs} == {"a", "b", "off"}
+    assert 'preserve_rare_values="all"' in repr(infer_feature_attributes(
+        df, max_distilled_cases=1_000, types={"n": "continuous"}).suggestions.preserve_rare_values)
+
+
+def test_preserve_rare_values_suggestion_config_format():
+    """Test that the values map names only the rare values, while the config also lists the small values at 1."""
+    df = _rare_values_df()
+    features = infer_feature_attributes(df, max_distilled_cases=1_000)
+    suggestion = features.suggestions.preserve_rare_values
+    assert suggestion.get_values_map() == {"a": [f"rare{i}" for i in range(5)]}
+    assert suggestion.details["num_values"] == 5
+    assert suggestion.details["num_preserved"] == 5
+    assert suggestion.details["limits"] == []
+    assert suggestion.caveats == []
+    assert "Cannot Be Preserved" not in repr(suggestion)
+    config = suggestion.get_config()
+    multipliers = {cfg["value"]: cfg["multiplier"] for cfg in config["a"]["value_weight_multipliers"]}
+    assert set(multipliers) == {f"rare{i}" for i in range(5)} | {"common"}
+    assert 0 < multipliers["common"] < 1
+
+
+def test_preserve_rare_values_suggestion_reports_limit(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that a suggestion whose rare values do not all fit reports the limit, and still applies."""
+    df = _rare_values_df()
+    # Uncapped, the common value can fund two of the five rare values at this target
+    features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30)
+    capsys.readouterr()
+    suggestion = features.suggestions.preserve_rare_values
+    assert suggestion.details["num_values"] == 5
+    assert suggestion.details["num_preserved"] == 2
+    (limit,) = suggestion.details["limits"]
+    assert limit["feature"] == "a"
+    assert (limit["preserved"], limit["candidates"]) == (2, 5)
+    assert 100 < limit["min_max_distilled_cases"] < len(df)
+    assert [c["code"] for c in suggestion.caveats] == ["partial_rare_value_preservation"]
+    assert "Preserved 2 of the 5 rare values" in suggestion.caveats[0]["message"]
+    # The headline counts what applying writes, and the rest separately
+    assert suggestion.summary == ("Found 2 rare values across 1 column that can be preserved during data "
+                                  "distillation, and 3 more across 1 column that cannot be preserved at this "
+                                  "`max_distilled_cases`")
+    description = " ".join(repr(suggestion).split())
+    assert "we identified 5 values across 1 column" in description
+    assert "of which 2 values across 1 column can be preserved" in description
+    # The limited feature is laid out in its own table, with the target that would preserve everything
+    assert "Rare Values That Cannot Be Preserved" in description
+    assert "2 of 5" in description
+    assert f"{limit['min_max_distilled_cases']:,}" in description
+    assert suggestion.get_values_map() == {"a": ["rare0", "rare1"]}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features.apply_suggestion("preserve_rare_values")
+    assert len({v for v, m in _multipliers(features["a"]).items() if m > 1}) == 2
+    # The reported target does fit every rare value
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        refit = infer_feature_attributes(df, max_distilled_cases=limit["min_max_distilled_cases"],
+                                         significance_threshold=30, preserve_rare_values=["a"])
+    assert len({v for v, m in _multipliers(refit["a"]).items() if m > 1}) == 5
+
+
+def test_preserve_rare_values_given_multipliers():
+    """Test that user-provided multipliers are funded by the other values, scaled down if they do not fit."""
+    df = _rare_values_df()
+    # These fit: 5 values gaining 9 * 200 cases each is well within half of the common value's weight
+    fitting = [{"value": f"rare{i}", "multiplier": 10.0} for i in range(5)]
+    # Without `max_distilled_cases`, the floor comes from the default target, and the user is told so
+    with pytest.warns(UserWarning, match="assumed distillation target of 50,000 cases"):
+        features = infer_feature_attributes(df, preserve_rare_values={"a": fitting})
+    multipliers = _multipliers(features["a"])
+    assert all(multipliers[f"rare{i}"] == 10.0 for i in range(5))
+    # The small values keep a multiplier of 1 and are not listed
+    assert set(multipliers) == {f"rare{i}" for i in range(5)} | {"common"}
+    assert multipliers["common"] == pytest.approx((98_980 - 5 * 9 * 200) / 98_980)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+    # These do not: without `max_distilled_cases` the floor comes from the default target of 50,000,
+    # so the common value keeps 30 * 100,000 / 50,000 = 60 cases and the increases are scaled down
+    # together to use the rest of its weight
+    too_high = [{"value": f"rare{i}", "multiplier": 200.0} for i in range(5)]
+    with pytest.warns(UserWarning, match="each multiplier's increase over 1 was scaled by"):
+        features = infer_feature_attributes(df, preserve_rare_values={"a": too_high})
+    multipliers = _multipliers(features["a"])
+    scale = (98_980 - 60) / (5 * 199 * 200)
+    assert all(multipliers[f"rare{i}"] == pytest.approx(1 + 199 * scale) for i in range(5))
+    assert multipliers["common"] == pytest.approx(60 / 98_980)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+    # A cap limits what the common value gives up
+    with pytest.warns(UserWarning, match="scaled by"):
+        features = infer_feature_attributes(df, preserve_rare_values={"a": too_high},
+                                            preserve_rare_values_caps={"a": 0.8})
+    assert _multiplier(features["a"], "common") == pytest.approx(0.2)
+
+    # With `max_distilled_cases`, nothing is assumed and nothing is reported
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=50_000,
+                                            preserve_rare_values={"a": fitting})
+    assert _multipliers(features["a"])["rare0"] == 10.0
+
+    # A full config is used as-is, without computing anything, so nothing is assumed either
+    full = {"value_weight_multipliers": [*too_high, {"value": "common", "multiplier": 0.25}]}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, preserve_rare_values={"a": full})
+    assert _prv(features["a"]) == full["value_weight_multipliers"]
+    # A dict is only accepted in that form
+    with pytest.raises(ValueError, match="got a dict with the keys \\['protected_values_multipliers'\\]"):
+        infer_feature_attributes(df, preserve_rare_values={"a": {"protected_values_multipliers": fitting}})
+
+    # Multipliers must be at least 1, and values must exist
+    with pytest.raises(ValueError, match="must be a finite number of at least 1"):
+        infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "rare0", "multiplier": 0.5}]})
+    with pytest.raises(ValueError, match="not found in column"):
+        infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "missing", "multiplier": 2}]})
+
+
+def test_preserve_rare_values_deficit_exactly_exhausts_budget():
+    """Test that a rare value whose deficit equals the available weight exactly is preserved."""
+    # At 252 -> 63 the floor is 120: the common value can give up 146 - 120 = 26 cases and the rare value
+    # needs 120 - 94 = 26, computed as 94 * (120 / 94 - 1), which floating point puts a few ulps above 26
+    df = pd.DataFrame({"a": ["common"] * 146 + ["rare"] * 94 + ["small"] * 12})
+    # `common` is named too; it keeps the threshold on its own, which is reported, while `rare` is lifted
+    with pytest.warns(UserWarning, match="The values `common` \\(146 cases\\) of feature `a` were not lifted") as record:
+        features = infer_feature_attributes(df, max_distilled_cases=63, significance_threshold=30,
+                                            preserve_rare_values={"a": ["common", "rare"]},
+                                            enable_suggestions=False)
+    assert not any("Preserved" in str(w.message) for w in record)
+    multipliers = _multipliers(features["a"])
+    assert set(multipliers) == {"common", "rare"}
+    assert multipliers["rare"] == pytest.approx(120 / 94)
+    assert multipliers["common"] == pytest.approx(120 / 146)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+
+def test_preserve_rare_values_deficit_just_exceeds_budget():
+    """Test that a deficit a hair over the available weight, within or beyond the slack, conserves total weight."""
+    # Same counts as above: the common value can give up 26 cases at a floor of 120. A given multiplier
+    # asks for 26 cases plus a fraction of the slack (1e-9 * 120), or plus several times it
+    df = pd.DataFrame({"a": ["common"] * 146 + ["rare"] * 94 + ["small"] * 12})
+    for excess, admitted in ((0.5e-9 * 120, True), (5e-9 * 120, False)):
+        multiplier = 1 + (26 + excess) / 94
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always", UserWarning)
+            features = infer_feature_attributes(df, max_distilled_cases=63, significance_threshold=30,
+                                                preserve_rare_values={"a": [{"value": "rare",
+                                                                             "multiplier": multiplier}]},
+                                                enable_suggestions=False)
+        multipliers = _multipliers(features["a"])
+        # Within the slack the target is admitted silently; beyond it, it is scaled with a warning. Either
+        # way the rare value is funded from the 26 cases alone, and the total weight is exactly conserved
+        assert any("scaled by" in str(w.message) for w in record) is not admitted
+        assert multipliers["rare"] == pytest.approx(120 / 94, rel=1e-9)
+        assert multipliers["common"] == pytest.approx(120 / 146, rel=1e-9)
+        assert _total_weight(df, features["a"]) == pytest.approx(len(df), abs=1e-9)
+
+
+def test_preserve_rare_values_significant_values_exactly_at_floor():
+    """Test the multipliers when funding the targets puts every significant value exactly at the floor."""
+    # With a target equal to the data size, the floor is the threshold itself: 29 cases. v1 and v2
+    # can give up 71 each, and `rare` asks for 5 * 29 = 145, so its multiplier is scaled to fit and
+    # both v1 and v2 end with exactly 29 cases, a factor of 0.29 that floating point cannot represent
+    df = pd.DataFrame({"a": ["v1"] * 100 + ["v2"] * 100 + ["rare"] * 5})
+    with pytest.warns(UserWarning, match="scaled by 0.979"):
+        features = infer_feature_attributes(df, max_distilled_cases=205, significance_threshold=29,
+                                            preserve_rare_values={
+                                                "a": [{"value": "rare", "multiplier": 30.0}]},
+                                            enable_suggestions=False)
+    multipliers = _multipliers(features["a"])
+    assert multipliers["rare"] == pytest.approx(1 + 29 * 142 / 145)
+    assert multipliers["v1"] == multipliers["v2"] == pytest.approx(0.29)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+    # Significant values of different sizes: the smaller one is held at the floor, the larger one is
+    # scaled, and together they give up exactly what the target needs
+    df = pd.DataFrame({"a": ["v1"] * 100 + ["v2"] * 50 + ["rare"] * 5})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=155, significance_threshold=29,
+                                            preserve_rare_values={
+                                                "a": [{"value": "rare", "multiplier": 19.0}]},
+                                            enable_suggestions=False)
+    multipliers = _multipliers(features["a"])
+    # v1 and v2 must end with 150 - 5 * 18 = 60 cases: v2 at the floor of 29, v1 with the other 31
+    assert multipliers["v2"] == pytest.approx(29 / 50)
+    assert multipliers["v1"] == pytest.approx(0.31)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
+def test_preserve_rare_values_unknown_feature(max_workers: int) -> None:
+    """Test that a misspelled feature in `preserve_rare_values` raises before anything is processed."""
+    df = _rare_values_df()
+    with pytest.raises(ValueError, match="`preserve_rare_values` names features that are not in the data: `typo`"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"typo": ["rare0"]},
+                                 max_workers=max_workers)
+    with pytest.raises(ValueError, match="`preserve_rare_values` names features that are not in the data: `typo`"):
+        infer_feature_attributes(df, preserve_rare_values={"typo": [{"value": "rare0", "multiplier": 2}]},
+                                 max_workers=max_workers)
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
+def test_preserve_rare_values_named_feature_needing_nothing_warns(max_workers: int) -> None:
+    """Test that a feature singled out for preservation is reported when none of its values needs it."""
+    # Feature `b` has one rare value; `c` has two balanced values that keep the threshold at any target
+    df = _two_rare_features_df()
+    df["c"] = ["p", "q"] * (len(df) // 2)
+    kwargs = {"max_distilled_cases": 1_000, "significance_threshold": 30, "max_workers": max_workers}
+    # Named in a list: the feature without candidates is reported, the other is preserved as usual
+    with pytest.warns(UserWarning, match="No rare value candidates were found in `c` at a `max_distilled_cases` of "
+                                         "1,000: every value either has fewer than 30 cases or keeps that many"):
+        features = infer_feature_attributes(df, preserve_rare_values=["b", "c"], **kwargs)
+    assert "value_weight_multipliers" in features["b"]
+    assert "value_weight_multipliers" not in features["c"]
+    # Given plain values: each value that keeps the threshold on its own is named with its count and the floor
+    floor = 30 * len(df) / get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)[0]
+    with pytest.warns(UserWarning) as record:
+        features = infer_feature_attributes(df, preserve_rare_values={"b": ["rare"], "c": ["p"]}, **kwargs)
+    (message,) = [str(w.message) for w in record if "were not lifted" in str(w.message)]
+    assert message.startswith(f"The values `p` ({len(df) // 2:,} cases) of feature `c` were not lifted: each keeps")
+    assert f"needs at least {floor:,.1f} cases to keep 30" in message
+    assert message.endswith("No value weight multipliers were written for `c`.")
+    assert "value_weight_multipliers" in features["b"]
+    assert "value_weight_multipliers" not in features["c"]
+    # When other named values of the feature were lifted, the outcome says so instead
+    with pytest.warns(UserWarning, match="The values `common` \\(98,980 cases\\) of feature `a` were not lifted.*\n"
+                                         "The other values named for `a` were lifted\\."):
+        features = infer_feature_attributes(df, preserve_rare_values={"a": ["common", "rare0"]}, **kwargs)
+    assert set(_multipliers(features["a"])) == {"rare0", "common"}
+    # "all" singles nothing out, so a feature without rare values is passed over silently
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, preserve_rare_values="all", **kwargs)
+    assert "value_weight_multipliers" not in features["c"]
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
+def test_preserve_rare_values_mixed_forms(max_workers: int) -> None:
+    """Test that one mapping can specify each feature in a different form, and that the forms are checked."""
+    df = _two_rare_features_df()
+    df["c"] = df["b"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=1_000, max_workers=max_workers,
+                                            preserve_rare_values={
+                                                "a": ["rare0", "rare1"],
+                                                "b": [{"value": "rare", "multiplier": 3.0}],
+                                                "c": {"value_weight_multipliers": [
+                                                    {"value": "rare", "multiplier": 2.5}]},
+                                            })
+    # `a`: multipliers computed for the named values; `b`: the given multiplier, funded; `c`: as given
+    assert {v for v, m in _multipliers(features["a"]).items() if m > 1} == {"rare0", "rare1"}
+    assert _multiplier(features["b"], "rare") == 3.0
+    assert _multiplier(features["b"], "common") < 1
+    assert _prv(features["c"]) == [{"value": "rare", "multiplier": 2.5}]
+    assert "value_weight_multipliers" not in features["off"]
+
+    # Each check happens once, before any feature is processed
+    with pytest.raises(ValueError, match="mixes plain values with dicts"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, max_workers=max_workers,
+                                 preserve_rare_values={"a": ["rare0", {"value": "rare1", "multiplier": 2}]})
+    with pytest.raises(ValueError, match="pairs value `rare0` with no multiplier"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, max_workers=max_workers,
+                                 preserve_rare_values={"a": [{"value": "rare0"}]})
+    with pytest.raises(TypeError, match="got str"):
+        infer_feature_attributes(df, max_distilled_cases=1_000, max_workers=max_workers,
+                                 preserve_rare_values={"a": "rare0"})  # pyright: ignore[reportArgumentType]
+
+
+def test_preserve_rare_values_nullable_numeric():
+    """Test that a null can be protected in a numeric feature, through a map and through a config."""
+    values = [1.0] * 9_800 + [2.0] * 100 + [None] * 50 + [np.nan] * 50
+    df = pd.DataFrame({"x": values, "i": range(len(values))})
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"x": [None, 2.0]},
+                                        types={"x": "nominal"})
+    multipliers = _multipliers(features["x"])
+    assert set(multipliers) == {None, 2.0, 1.0}
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
+    assert multipliers[None] == pytest.approx(30 * len(df) / target / 100)
+    with pytest.warns(UserWarning, match="assumed distillation target"):
+        features = infer_feature_attributes(df, preserve_rare_values={"x": [{"value": None, "multiplier": 2}]},
+                                            types={"x": "nominal"})
+    multipliers = _multipliers(features["x"])
+    assert multipliers[None] == 2.0
+    # The value 2.0 keeps the threshold on its own at the default target, so it funds the null alongside 1.0
+    assert set(multipliers) == {None, 1.0, 2.0}
+    assert multipliers[1.0] == multipliers[2.0] < 1
+
+
+def test_preserve_rare_values_keeps_integer_values():
+    """Test that protected values of an integer nominal feature are stored as the integers the user gave."""
+    values = [1] * 9_900 + [7] * 100
+    df = pd.DataFrame({"k": values, "i": range(len(values))})
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"k": [7]},
+                                        types={"k": "nominal"})
+    assert set(_multipliers(features["k"])) == {7, 1}
+    assert all(type(entry["value"]) is int for entry in _prv(features["k"]))
+    # Candidates found in the data come back as plain Python integers too
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["k"],
+                                        types={"k": "nominal"})
+    assert set(_multipliers(features["k"])) == {7, 1}
+    assert all(type(entry["value"]) is int for entry in _prv(features["k"]))
+
+
+def test_preserve_rare_values_mixed_nulls_are_one_value():
+    """Test that None, NaN and NA in one feature are preserved as a single null value with conserved weight."""
+    values = ["common"] * 9_880 + [None] * 40 + [np.nan] * 40 + [pd.NA] * 40
+    df = pd.DataFrame({"a": pd.Series(values, dtype=object), "i": range(len(values))})
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="all")
+    multipliers = _multipliers(features["a"])
+    assert set(multipliers) == {None, "common"}
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
+    assert multipliers[None] == pytest.approx(30 * len(df) / target / 120)
+    null_count = int(df["a"].isna().sum())
+    total = null_count * multipliers[None] + (len(df) - null_count) * multipliers["common"]
+    assert total == pytest.approx(len(df))
+
+
+def test_preserve_rare_values_limit_target_counts_future_donors():
+    """Test that the reported target for fitting every rare value counts values that can donate only there."""
+    # 250 common, 100 intermediate and seven rare values of 30: at 560 -> 70 the floor is 240, so only the
+    # common value can donate, and its 10 spare cases fund none of the 210-case deficits. At 280 the floor is
+    # 60, the intermediate value becomes a donor (190 + 40 = 230 against 7 * 30 = 210), and every rare value fits.
+    values = ["common"] * 250 + ["mid"] * 100 + [f"rare{i}" for i in range(7) for _ in range(30)]
+    df = pd.DataFrame({"a": values})
+    rare_map = {"a": [f"rare{i}" for i in range(7)]}
+    with pytest.warns(UserWarning, match="Preserved 0 of the 7 rare values of feature `a`.*at least 280,"):
+        features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
+                                            preserve_rare_values=rare_map)
+    assert "value_weight_multipliers" not in features["a"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        refit = infer_feature_attributes(df, max_distilled_cases=280, significance_threshold=30,
+                                         preserve_rare_values=rare_map)
+    assert len({v for v, m in _multipliers(refit["a"]).items() if m > 1}) == 7
+
+
+def test_preserve_rare_values_no_donor_is_reported():
+    """Test that a request nothing can fund is reported, for a map and for a simple config."""
+    # 400 common and ten rare values of 60: at 1,000 -> 63 the floor is 476, above the common value's
+    # count, so no value can donate; at 500 the floor is 60 and the rare values need nothing
+    values = ["common"] * 400 + [f"rare{i}" for i in range(10) for _ in range(60)]
+    df = pd.DataFrame({"a": values})
+    rare_values = [f"rare{i}" for i in range(10)]
+    with pytest.warns(UserWarning, match="Preserved 0 of the 10 rare values of feature `a`.*at least 500,"):
+        features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
+                                            preserve_rare_values={"a": rare_values})
+    assert "value_weight_multipliers" not in features["a"]
+    config = {"a": [{"value": value, "multiplier": 2.0} for value in rare_values]}
+    with pytest.warns(UserWarning, match="Preserved 0 of the 10 rare values of feature `a`"):
+        features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
+                                            preserve_rare_values=config)
+    assert "value_weight_multipliers" not in features["a"]
+    with pytest.warns(UserWarning, match="No value weight multipliers were written for `a`"):
+        refit = infer_feature_attributes(df, max_distilled_cases=500, significance_threshold=30,
+                                         preserve_rare_values={"a": rare_values})
+    assert "value_weight_multipliers" not in refit["a"]
+
+
+def test_preserve_rare_values_suggestion_with_nothing_funded(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that the automatic suggestion still reports candidates none of which can be funded."""
+    # As above, no value can donate at 1,000 -> 63; the common value is itself a candidate there
+    values = ["common"] * 400 + [f"rare{i}" for i in range(10) for _ in range(60)]
+    df = pd.DataFrame({"a": values})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30)
+    capsys.readouterr()
+    suggestion = features.suggestions.preserve_rare_values
+    assert suggestion.can_apply is False
+    assert suggestion.details["num_preserved"] == 0
+    assert suggestion.details["num_values"] == suggestion.details["limits"][0]["candidates"] == 11
+    assert suggestion.details["num_candidate_features"] == 1
+    assert suggestion.details["num_features"] == 0
+    assert suggestion.summary == ("Found 11 rare values across 1 column whose signal may be lost during data "
+                                  "distillation, none of which can be preserved at this `max_distilled_cases`")
+    assert suggestion.details["value_weight_multipliers"] == {}
+    (caveat,) = suggestion.caveats
+    assert caveat["code"] == "partial_rare_value_preservation"
+    assert "Preserved 0 of the 11 rare values of feature `a`" in caveat["message"]
+    assert "at least 500" in caveat["message"]
+    assert suggestion.get_values_map() == {}
+    with pytest.warns(UserWarning, match="^This suggestion was not applied: none of the rare values found"):
+        features.apply_suggestion("preserve_rare_values")
+    assert "value_weight_multipliers" not in features["a"]
+
+
+def test_preserve_rare_values_duplicate_values():
+    """Test that a value listed twice is weighted once, in both the plain and the paired form."""
+    df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["small"] * 10})
+    for spec in (["rare", "rare"], [{"value": "rare", "multiplier": 3.0}, {"value": "rare", "multiplier": 3.0}]):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            features = infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                                preserve_rare_values={"a": spec}, enable_suggestions=False)
+        entries = _prv(features["a"])
+        assert [entry["value"] for entry in entries] == ["rare", "common"]
+        assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+    # Null forms are one value too
+    nullable = pd.DataFrame({"a": ["common"] * 900 + [None] * 60 + [np.nan] * 30 + ["small"] * 10})
+    features = infer_feature_attributes(nullable, max_distilled_cases=200, significance_threshold=30,
+                                        preserve_rare_values={"a": [None, np.nan]}, enable_suggestions=False)
+    assert [entry["value"] for entry in _prv(features["a"])] == [None, "common"]
+    # The same value with two different multipliers is a contradiction
+    with pytest.raises(ValueError, match="gives value `rare` two different multipliers, 3 and 4"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": 3.0},
+                                                             {"value": "rare", "multiplier": 4.0}]})
+
+
+def test_preserve_rare_values_multiplier_of_one_is_omitted():
+    """Test that a value paired with a multiplier of 1 is left out of the output, like any unchanged value."""
+    df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["small"] * 10})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                            preserve_rare_values={"a": [{"value": "rare", "multiplier": 2},
+                                                                        {"value": "small", "multiplier": 1}]},
+                                            enable_suggestions=False)
+    assert set(_multipliers(features["a"])) == {"rare", "common"}
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+    # A value pinned at 1 is a target, not a donor: `fixed` has enough cases to fund `rare` but is left alone
+    pinned = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["fixed"] * 300})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(pinned, max_distilled_cases=400, significance_threshold=30,
+                                            preserve_rare_values={"a": [{"value": "rare", "multiplier": 2},
+                                                                        {"value": "fixed", "multiplier": 1}]},
+                                            enable_suggestions=False)
+    multipliers = _multipliers(features["a"])
+    assert set(multipliers) == {"rare", "common"}
+    assert multipliers["rare"] == 2.0
+    assert multipliers["common"] == pytest.approx((900 - 60) / 900)
+    assert _total_weight(pinned, features["a"]) == pytest.approx(len(pinned))
+    # A pinned value is not a rare value to fund: when the pin is the only value that could have donated,
+    # the report counts and the suggested target consider the lifted value alone
+    pinned_donor = pd.DataFrame({"a": ["fixed"] * 900 + ["rare"] * 60})
+    with pytest.warns(UserWarning, match="Preserved 0 of the 1 rare values of feature `a`.*at least 480,"):
+        features = infer_feature_attributes(pinned_donor, max_distilled_cases=400, significance_threshold=30,
+                                            preserve_rare_values={"a": [{"value": "rare", "multiplier": 2},
+                                                                        {"value": "fixed", "multiplier": 1}]},
+                                            enable_suggestions=False)
+    assert "value_weight_multipliers" not in features["a"]
+    # A pinned value is validated like any other
+    with pytest.raises(ValueError, match="not found in column"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "typo", "multiplier": 1}]})
+    # Asking for no change at all writes nothing and says nothing, with or without a target, even when
+    # the feature has no value that could donate
+    no_donor = pd.DataFrame({"a": ["x"] * 50 + ["y"] * 50})
+    for frame in (df, no_donor):
+        for kwargs in ({"max_distilled_cases": 200}, {}):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", UserWarning)
+                features = infer_feature_attributes(frame, significance_threshold=30, enable_suggestions=False,
+                                                    preserve_rare_values={"a": [{"value": "x" if frame is no_donor
+                                                                                 else "rare", "multiplier": 1}]},
+                                                    **kwargs)
+            assert "value_weight_multipliers" not in features["a"]
+    # A multiplier of 1 still counts as a conflicting duplicate of another multiplier for the same value
+    with pytest.raises(ValueError, match="two different multipliers, 1 and 2"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": 1},
+                                                             {"value": "rare", "multiplier": 2}]})
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
+def test_preserve_rare_values_huge_multiplier_conserves_weight(max_workers: int) -> None:
+    """Test that a multiplier near the float limit is scaled down to the budget without overflowing."""
+    # 900 common and 100 rare cases at 1,000 -> 63: the floor is 476.19, so the common value can give up
+    # 423.81 cases, and that is what the rare value receives whatever multiplier was asked for
+    df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 100, "i": range(1_000)})
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=100)
+    floor = 30 * len(df) / target
+    with pytest.warns(UserWarning, match="scaled by"):
+        features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
+                                            preserve_rare_values={"a": [{"value": "rare", "multiplier": 1e308}]},
+                                            max_workers=max_workers)
+    multipliers = _multipliers(features["a"])
+    assert multipliers["rare"] == pytest.approx(1 + (900 - floor) / 100)
+    assert multipliers["common"] == pytest.approx(floor / 900)
+    assert _total_weight(df, features["a"]) == pytest.approx(len(df))
+
+
+@pytest.mark.parametrize("multiplier", [float("nan"), float("inf"), -float("inf"), "2", None])
+def test_preserve_rare_values_multiplier_must_be_finite(multiplier) -> None:
+    """Test that a given multiplier must be a finite number, both when funded and in a complete configuration."""
+    df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["small"] * 10})
+    with pytest.raises(ValueError, match="must be a finite number of at least 1"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": multiplier}]})
+    with pytest.raises(ValueError, match="must be a finite number of at least 0"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": {"value_weight_multipliers": [
+                                     {"value": "rare", "multiplier": multiplier}]}})
+    with pytest.raises(ValueError, match="must be positive; got 0"):
+        infer_feature_attributes(df, max_distilled_cases=200, significance_threshold=30,
+                                 preserve_rare_values={"a": {"value_weight_multipliers": [
+                                     {"value": "rare", "multiplier": 0}]}})
+
+
+def test_preserve_rare_values_all_cases_protected():
+    """Test that a feature is skipped, with a warning, when every one of its cases holds a protected value."""
+    df = pd.DataFrame({"a": ["x"] * 50 + ["y"] * 50, "i": range(100)})
+    with pytest.warns(UserWarning, match="Preserved 0 of the 2 rare values of feature `a`"):
+        features = infer_feature_attributes(df, max_distilled_cases=10, preserve_rare_values={"a": ["x", "y"]})
+    assert "value_weight_multipliers" not in features["a"]
+    all_values = [{"value": "x", "multiplier": 2}, {"value": "y", "multiplier": 2}]
+    with pytest.warns(UserWarning, match="Preserved 0 of the 2 rare values of feature `a`"):
+        features = infer_feature_attributes(df, preserve_rare_values={"a": all_values})
+    assert "value_weight_multipliers" not in features["a"]
+
+
+def test_preserve_rare_values_null_values():
+    """Test that all null values count as one value, listed once as None when it is protected and never otherwise."""
+    values = ["common"] * 9_880 + ["rare"] * 100 + [None] * 10 + [np.nan] * 10
+    df = pd.DataFrame({"a": values, "i": range(len(values))})
+    # Too few nulls to be significant: they keep a multiplier of 1 and are not listed
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"a": ["rare"]})
+    multipliers = _multipliers(features["a"])
+    assert set(multipliers) == {"rare", "common"}
+    # Protected: listed once, as None, with the count of every null form; `rare` sits below the floor
+    # without being named, so it keeps its weight rather than being lifted, and is not listed
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"a": [None]})
+    multipliers = _multipliers(features["a"])
+    assert set(multipliers) == {None, "common"}
+    target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
+    assert multipliers[None] == pytest.approx(30 * len(df) / target / 20)
+
 
 def test_infer_fanout_features(capsys):
     """Test that `infer_feature_attributes` correctly infers and issues suggestions about fan-out features."""

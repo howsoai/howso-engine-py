@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --index-url=None --no-emit-index-url --no-index --output-file=requirements-3.11.txt --pip-args=None
 #
-amalgam-lang==35.1.0
+amalgam-lang==35.1.1
     # via howso-engine (pyproject.toml)
 certifi==2026.7.22
     # via
@@ -16,7 +16,7 @@ click==8.5.0
     # via sacremoses
 cloudpickle==3.1.2
     # via joblib
-faker==40.41.0
+faker==40.42.0
     # via howso-engine (pyproject.toml)
 humanize==4.16.0
     # via howso-engine (pyproject.toml)

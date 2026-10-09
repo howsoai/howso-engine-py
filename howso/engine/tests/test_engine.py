@@ -455,3 +455,49 @@ def test_supports_engine_progress_invalidated_by_new_client(simple_trainee):
     assert simple_trainee._supports_engine_progress is not None
     simple_trainee.client = simple_trainee.client
     assert simple_trainee._supports_engine_progress is None
+
+
+def test_value_weight_multipliers_applied_at_train():
+    """Case weights come out as the `value_weight_multipliers` that `infer_feature_attributes` writes."""
+    import pandas as pd
+
+    from howso.utilities import infer_feature_attributes
+    from howso.utilities.utilities import get_optimized_partition_size
+
+    # Distilling 1,000 cases to the rounded target gives a floor of 30 * 1,000 / target cases: `rare`
+    # (40 cases) is lifted to it, `common` funds the lift, and `small` (10 cases, below the threshold) is
+    # untouched. Feature `b` has its own rare value, so a case rare in both shows how the features combine.
+    n = 1_000
+    df = pd.DataFrame({
+        "a": ["common"] * 950 + ["rare"] * 40 + ["small"] * 10,
+        "b": ["other"] * 960 + ["scarce"] * 40,
+        "i": range(n),
+    })
+    features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
+                                        preserve_rare_values=["a", "b"], enable_suggestions=False)
+    multipliers = {
+        feature: {entry["value"]: entry["multiplier"] for entry in features[feature]["value_weight_multipliers"]}
+        for feature in ("a", "b")
+    }
+    target, _ = get_optimized_partition_size(row_count=n, max_partition_size=100)
+    floor = 30 * n / target
+    assert multipliers["a"]["rare"] == pytest.approx(floor / 40)
+    assert multipliers["a"]["common"] == pytest.approx((950 - (floor - 40)) / 950)
+    assert "small" not in multipliers["a"]
+    assert set(multipliers["b"]) == {"other", "scarce"}
+
+    trainee = Trainee(features=features)
+    try:
+        trainee.train(df)
+        cases = trainee.get_cases(features=["a", "b", ".case_weight"])
+    finally:
+        trainee.delete()
+    assert len(cases) == n
+    # A case's weight is the mean of its multipliers over the features that carry any, an unlisted
+    # value counting as 1, so the total weight is conserved across features as well as within each
+    expected = (cases["a"].map(lambda v: multipliers["a"].get(v, 1.0))
+                + cases["b"].map(lambda v: multipliers["b"].get(v, 1.0))) / 2
+    assert cases[".case_weight"].to_numpy() == pytest.approx(expected.to_numpy())
+    assert cases[".case_weight"].sum() == pytest.approx(n)
+    weights_a = cases["a"].map(lambda v: multipliers["a"].get(v, 1.0))
+    assert weights_a.sum() == pytest.approx(n)
