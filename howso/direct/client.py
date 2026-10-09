@@ -1008,6 +1008,17 @@ class HowsoDirectClient(AbstractHowsoClient):
                 'The create trainee parameter `resources` is deprecated and will be removed in '
                 'a future release. Please use `runtime` instead.', DeprecationWarning)
 
+        if max_wait_time is not None:
+            warnings.warn(
+                '`max_wait_time` is not implemented for the `HowsoDirectClient`.', UnsupportedArgumentWarning)
+
+        if runtime is not None:
+            warnings.warn(
+                '`runtime` is not implemented for the `HowsoDirectClient`. Modify the configuration '
+                '`howso > client_extra_params > amalgam > library_postfix` in "howso.yml" instead.',
+                UnsupportedArgumentWarning
+            )
+
         if trainee_id:
             # Ensure there are no invalid characters in the ID
             for sequence in self.BAD_TRAINEE_NAME_CHARS:
