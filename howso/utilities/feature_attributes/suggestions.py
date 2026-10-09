@@ -652,7 +652,7 @@ class PRVSuggestion(IFASuggestion):
                      f"{_count(details['num_features'], 'column')} that can be preserved during data distillation")
         if unfunded:
             statement += (f", and {unfunded:,} more across {_count(unfunded_features, 'column')} that cannot be "
-                          "at this `max_distilled_cases`")
+                          "preserved at this `max_distilled_cases`")
         return statement
 
     @property

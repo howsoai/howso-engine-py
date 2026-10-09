@@ -2579,7 +2579,8 @@ class InferFeatureAttributesBase(ABC):
         values_map: PreserveRareValuesMap,
         significance_threshold: int,
         caps: Mapping[str, float] | None = None,
-    ) -> tuple[FullPreserveRareValuesConfig, PreserveRareValuesMap, list[RareValuePreservationLimit]]:
+    ) -> tuple[FullPreserveRareValuesConfig, PreserveRareValuesMap, list[RareValuePreservationLimit],
+               dict[str, list[tuple[Any, int]]]]:
         """
         Determine the case weight multipliers for the provided rare values and the other values of their features.
 
@@ -2609,10 +2610,14 @@ class InferFeatureAttributesBase(ABC):
             The rare values of each configured feature that were weighted up.
         list of RareValuePreservationLimit
             The features whose rare values could not all be preserved.
+        dict of str to list of tuple
+            The values of each feature that were not lifted, with their case counts, because each
+            keeps the significance threshold on its own at this target.
         """
         prvc: FullPreserveRareValuesConfig = {}
         protected_map: PreserveRareValuesMap = {}
         limits: list[RareValuePreservationLimit] = []
+        skipped: dict[str, list[tuple[Any, int]]] = {}
         caps = caps or {}
         total_cases = self._get_row_count()
         for feature, values in values_map.items():
@@ -2629,6 +2634,7 @@ class InferFeatureAttributesBase(ABC):
                 multiplier = floor / count
                 # A value that keeps the threshold on its own does not need signal preservation
                 if multiplier <= 1:
+                    skipped.setdefault(feature, []).append((_as_feature_value(value), count))
                     continue
                 targets.append({"value": _as_feature_value(value), "multiplier": float(multiplier)})
             if not targets:
@@ -2646,7 +2652,7 @@ class InferFeatureAttributesBase(ABC):
             if config is not None:
                 prvc[feature] = config
                 protected_map[feature] = [entry["value"] for entry in kept]
-        return prvc, protected_map, limits
+        return prvc, protected_map, limits, skipped
 
     def _process_rare_values(  # noqa: PLR0912, PLR0915
         self,
@@ -2704,7 +2710,7 @@ class InferFeatureAttributesBase(ABC):
             candidates, values_ranking = self._find_protected_value_candidates(
                 max_distilled_cases=max_distilled_cases, significance_threshold=significance_threshold)
             if candidates:
-                candidate_prvc, protected_map, limits = self._compute_preserve_rare_values_config(
+                candidate_prvc, protected_map, limits, _ = self._compute_preserve_rare_values_config(
                     max_distilled_cases=max_distilled_cases,
                     values_map=candidates,
                     significance_threshold=significance_threshold,
@@ -2718,11 +2724,10 @@ class InferFeatureAttributesBase(ABC):
 
         given: PreserveRareValuesConfig = {}
         full: FullPreserveRareValuesConfig = {}
-        # The features the user singled out for preservation
+        # The features the user singled out by name, to be told about if no candidate is found in them
         named_features: list[str] = []
         if isinstance(preserve_rare_values, Mapping):
             values_map, given, full = _split_rare_values(preserve_rare_values)
-            named_features = [feature for feature, values in values_map.items() if values]
         else:
             # "all" or a list of feature names selects the rare value candidates of those features
             if not user_set_mdc:
@@ -2757,7 +2762,7 @@ class InferFeatureAttributesBase(ABC):
                 caps=caps,
             ))
         # Plain values get their multipliers computed
-        computed, _, limits = self._compute_preserve_rare_values_config(
+        computed, _, limits, skipped = self._compute_preserve_rare_values_config(
             max_distilled_cases=max_distilled_cases,
             values_map=values_map,
             significance_threshold=significance_threshold,
@@ -2767,8 +2772,7 @@ class InferFeatureAttributesBase(ABC):
         for limit in limits:
             self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE,
                                            partial_rare_value_preservation_message(limit))
-        # A feature the user named that received no multipliers and hit no limit needed nothing: every value
-        # to preserve keeps the threshold on its own at this target
+        # A feature the user named in which no candidate was found needs nothing at this target
         limited = {limit["feature"] for limit in limits}
         unneeded = [feature for feature in named_features
                     if feature in self.attributes and feature not in computed and feature not in limited]
@@ -2776,10 +2780,29 @@ class InferFeatureAttributesBase(ABC):
             names = ", ".join(f"`{feature}`" for feature in unneeded)
             self.warnings_collector.triage(
                 IFAWarningEmitterType.SIMPLE,
-                f"No value weight multipliers were written for {names}: the values to preserve keep the "
-                f"significance threshold on their own at a `max_distilled_cases` of "
-                f"{requested_max_distilled_cases:,}.\n"
+                f"No rare value candidates were found in {names} at a `max_distilled_cases` of "
+                f"{requested_max_distilled_cases:,}: every value either has fewer than {significance_threshold} "
+                "cases or keeps that many after distillation on its own.\n"
                 "These features need no rare value preservation at this target."
+            )
+        # A value the user named that was not lifted keeps the threshold on its own; it is reported with its
+        # count against the floor, whether or not the other values named for the feature were lifted
+        floor = significance_threshold * self._get_row_count() / max_distilled_cases
+        floor_text = f"{floor:,.0f}" if float(floor).is_integer() else f"{floor:,.1f}"
+        for feature, values in skipped.items():
+            if feature not in self.attributes:
+                continue
+            listed = ", ".join(f"`{value}` ({count:,} cases)" for value, count in values[:10])
+            if len(values) > 10:
+                listed += f", and {len(values) - 10:,} more"
+            outcome = (f"The other values named for `{feature}` were lifted." if feature in computed
+                       else f"No value weight multipliers were written for `{feature}`.")
+            self.warnings_collector.triage(
+                IFAWarningEmitterType.SIMPLE,
+                f"The values {listed} of feature `{feature}` were not lifted: each keeps the significance "
+                f"threshold on its own at a `max_distilled_cases` of {requested_max_distilled_cases:,}, where a "
+                f"value needs at least {floor_text} cases to keep {significance_threshold} after distillation.\n"
+                f"{outcome}"
             )
         if not user_set_mdc:
             # Whether a value needs preservation, and by how much, depends on the target, so every feature

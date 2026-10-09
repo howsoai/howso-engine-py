@@ -1705,11 +1705,12 @@ def test_preserve_rare_values_deficit_exactly_exhausts_budget():
     # At 252 -> 63 the floor is 120: the common value can give up 146 - 120 = 26 cases and the rare value
     # needs 120 - 94 = 26, computed as 94 * (120 / 94 - 1), which floating point puts a few ulps above 26
     df = pd.DataFrame({"a": ["common"] * 146 + ["rare"] * 94 + ["small"] * 12})
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", UserWarning)
+    # `common` is named too; it keeps the threshold on its own, which is reported, while `rare` is lifted
+    with pytest.warns(UserWarning, match="The values `common` \\(146 cases\\) of feature `a` were not lifted") as record:
         features = infer_feature_attributes(df, max_distilled_cases=63, significance_threshold=30,
                                             preserve_rare_values={"a": ["common", "rare"]},
                                             enable_suggestions=False)
+    assert not any("Preserved" in str(w.message) for w in record)
     multipliers = _multipliers(features["a"])
     assert set(multipliers) == {"common", "rare"}
     assert multipliers["rare"] == pytest.approx(120 / 94)
@@ -1790,14 +1791,27 @@ def test_preserve_rare_values_named_feature_needing_nothing_warns(max_workers: i
     df = _two_rare_features_df()
     df["c"] = ["p", "q"] * (len(df) // 2)
     kwargs = {"max_distilled_cases": 1_000, "significance_threshold": 30, "max_workers": max_workers}
-    # Named in a list, or given plain values: the feature is reported, the other is preserved as usual
-    for spec in (["b", "c"], {"b": ["rare"], "c": ["p"]}):
-        with pytest.warns(UserWarning, match="No value weight multipliers were written for `c`: the values to "
-                                             "preserve keep the significance threshold on their own at a "
-                                             "`max_distilled_cases` of 1,000"):
-            features = infer_feature_attributes(df, preserve_rare_values=spec, **kwargs)
-        assert "value_weight_multipliers" in features["b"]
-        assert "value_weight_multipliers" not in features["c"]
+    # Named in a list: the feature without candidates is reported, the other is preserved as usual
+    with pytest.warns(UserWarning, match="No rare value candidates were found in `c` at a `max_distilled_cases` of "
+                                         "1,000: every value either has fewer than 30 cases or keeps that many"):
+        features = infer_feature_attributes(df, preserve_rare_values=["b", "c"], **kwargs)
+    assert "value_weight_multipliers" in features["b"]
+    assert "value_weight_multipliers" not in features["c"]
+    # Given plain values: each value that keeps the threshold on its own is named with its count and the floor
+    floor = 30 * len(df) / get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)[0]
+    with pytest.warns(UserWarning) as record:
+        features = infer_feature_attributes(df, preserve_rare_values={"b": ["rare"], "c": ["p"]}, **kwargs)
+    (message,) = [str(w.message) for w in record if "were not lifted" in str(w.message)]
+    assert message.startswith(f"The values `p` ({len(df) // 2:,} cases) of feature `c` were not lifted: each keeps")
+    assert f"needs at least {floor:,.1f} cases to keep 30" in message
+    assert message.endswith("No value weight multipliers were written for `c`.")
+    assert "value_weight_multipliers" in features["b"]
+    assert "value_weight_multipliers" not in features["c"]
+    # When other named values of the feature were lifted, the outcome says so instead
+    with pytest.warns(UserWarning, match="The values `common` \\(98,980 cases\\) of feature `a` were not lifted.*\n"
+                                         "The other values named for `a` were lifted\\."):
+        features = infer_feature_attributes(df, preserve_rare_values={"a": ["common", "rare0"]}, **kwargs)
+    assert set(_multipliers(features["a"])) == {"rare0", "common"}
     # "all" singles nothing out, so a feature without rare values is passed over silently
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
