@@ -1622,7 +1622,7 @@ def test_preserve_rare_values_suggestion_reports_limit(capsys: pytest.CaptureFix
     assert "Preserved 2 of the 5 rare values" in suggestion.caveats[0]["message"]
     # The headline counts what applying writes, and the rest separately
     assert suggestion.summary == ("Found 2 rare values across 1 column that can be preserved during data "
-                                  "distillation, and 3 more across 1 column that cannot be at this "
+                                  "distillation, and 3 more across 1 column that cannot be preserved at this "
                                   "`max_distilled_cases`")
     description = " ".join(repr(suggestion).split())
     assert "we identified 5 values across 1 column" in description
