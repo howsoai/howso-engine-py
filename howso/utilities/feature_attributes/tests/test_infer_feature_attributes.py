@@ -1598,6 +1598,7 @@ def test_preserve_rare_values_suggestion_config_format():
     assert suggestion.details["num_preserved"] == 5
     assert suggestion.details["limits"] == []
     assert suggestion.caveats == []
+    assert "Cannot Be Preserved" not in repr(suggestion)
     config = suggestion.get_config()
     multipliers = {cfg["value"]: cfg["multiplier"] for cfg in config["a"]["value_weight_multipliers"]}
     assert set(multipliers) == {f"rare{i}" for i in range(5)} | {"common"}
@@ -1626,6 +1627,10 @@ def test_preserve_rare_values_suggestion_reports_limit(capsys: pytest.CaptureFix
     description = " ".join(repr(suggestion).split())
     assert "we identified 5 values across 1 column" in description
     assert "of which 2 values across 1 column can be preserved" in description
+    # The limited feature is laid out in its own table, with the target that would preserve everything
+    assert "Rare Values That Cannot Be Preserved" in description
+    assert "2 of 5" in description
+    assert f"{limit['min_max_distilled_cases']:,}" in description
     assert suggestion.get_values_map() == {"a": ["rare0", "rare1"]}
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
@@ -1779,6 +1784,28 @@ def test_preserve_rare_values_unknown_feature(max_workers: int) -> None:
 
 
 @pytest.mark.parametrize("max_workers", [0, 2])
+def test_preserve_rare_values_named_feature_needing_nothing_warns(max_workers: int) -> None:
+    """Test that a feature singled out for preservation is reported when none of its values needs it."""
+    # Feature `b` has one rare value; `c` has two balanced values that keep the threshold at any target
+    df = _two_rare_features_df()
+    df["c"] = ["p", "q"] * (len(df) // 2)
+    kwargs = {"max_distilled_cases": 1_000, "significance_threshold": 30, "max_workers": max_workers}
+    # Named in a list, or given plain values: the feature is reported, the other is preserved as usual
+    for spec in (["b", "c"], {"b": ["rare"], "c": ["p"]}):
+        with pytest.warns(UserWarning, match="No value weight multipliers were written for `c`: the values to "
+                                             "preserve keep the significance threshold on their own at a "
+                                             "`max_distilled_cases` of 1,000"):
+            features = infer_feature_attributes(df, preserve_rare_values=spec, **kwargs)
+        assert "value_weight_multipliers" in features["b"]
+        assert "value_weight_multipliers" not in features["c"]
+    # "all" singles nothing out, so a feature without rare values is passed over silently
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        features = infer_feature_attributes(df, preserve_rare_values="all", **kwargs)
+    assert "value_weight_multipliers" not in features["c"]
+
+
+@pytest.mark.parametrize("max_workers", [0, 2])
 def test_preserve_rare_values_mixed_forms(max_workers: int) -> None:
     """Test that one mapping can specify each feature in a different form, and that the forms are checked."""
     df = _two_rare_features_df()
@@ -1895,8 +1922,7 @@ def test_preserve_rare_values_no_donor_is_reported():
         features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
                                             preserve_rare_values=config)
     assert "value_weight_multipliers" not in features["a"]
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", UserWarning)
+    with pytest.warns(UserWarning, match="No value weight multipliers were written for `a`"):
         refit = infer_feature_attributes(df, max_distilled_cases=500, significance_threshold=30,
                                          preserve_rare_values={"a": rare_values})
     assert "value_weight_multipliers" not in refit["a"]

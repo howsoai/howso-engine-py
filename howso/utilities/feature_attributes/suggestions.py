@@ -588,8 +588,39 @@ class PRVSuggestion(IFASuggestion):
 
         console = Console(width=total_width)
         with console.capture() as capture:
+            if self._limits:
+                console.print(self._limits_table(total_width))
             console.print(options_table)
         return f"{header}\n\n{wrap_paragraphs(body, total_width)}\n\n{capture.get().rstrip()}"
+
+    def _limits_table(self, width: int) -> Table:
+        """
+        Render the features whose rare values could not all be preserved as a table.
+
+        Parameters
+        ----------
+        width : int
+            The total width of the table.
+
+        Returns
+        -------
+        Table
+            One row per limited feature: how many of its rare values are preserved, and the smallest
+            `max_distilled_cases` at which all of them would be.
+        """
+        table = Table(title="Rare Values That Cannot Be Preserved at This `max_distilled_cases`",
+                      show_lines=True, width=width)
+        table.add_column("Feature", overflow="fold")
+        table.add_column("Rare values preserved", justify="right")
+        table.add_column("Smallest `max_distilled_cases` that preserves all", justify="right")
+        for limit in self._limits:
+            needed = limit["min_max_distilled_cases"]
+            table.add_row(
+                str(limit["feature"]),
+                f"{limit['preserved']:,} of {limit['candidates']:,}",
+                f"{needed:,}" if needed is not None else "none",
+            )
+        return table
 
     @property
     def name(self) -> str:

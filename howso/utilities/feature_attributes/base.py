@@ -2718,8 +2718,11 @@ class InferFeatureAttributesBase(ABC):
 
         given: PreserveRareValuesConfig = {}
         full: FullPreserveRareValuesConfig = {}
+        # The features the user singled out for preservation
+        named_features: list[str] = []
         if isinstance(preserve_rare_values, Mapping):
             values_map, given, full = _split_rare_values(preserve_rare_values)
+            named_features = [feature for feature, values in values_map.items() if values]
         else:
             # "all" or a list of feature names selects the rare value candidates of those features
             if not user_set_mdc:
@@ -2738,6 +2741,7 @@ class InferFeatureAttributesBase(ABC):
                 significance_threshold=significance_threshold,
                 features=search_features,
             )
+            named_features = list(search_features or [])
 
         prvc: FullPreserveRareValuesConfig = {}
         # A complete configuration is used as-is
@@ -2763,6 +2767,20 @@ class InferFeatureAttributesBase(ABC):
         for limit in limits:
             self.warnings_collector.triage(IFAWarningEmitterType.SIMPLE,
                                            partial_rare_value_preservation_message(limit))
+        # A feature the user named that received no multipliers and hit no limit needed nothing: every value
+        # to preserve keeps the threshold on its own at this target
+        limited = {limit["feature"] for limit in limits}
+        unneeded = [feature for feature in named_features
+                    if feature in self.attributes and feature not in computed and feature not in limited]
+        if unneeded:
+            names = ", ".join(f"`{feature}`" for feature in unneeded)
+            self.warnings_collector.triage(
+                IFAWarningEmitterType.SIMPLE,
+                f"No value weight multipliers were written for {names}: the values to preserve keep the "
+                f"significance threshold on their own at a `max_distilled_cases` of "
+                f"{requested_max_distilled_cases:,}.\n"
+                "These features need no rare value preservation at this target."
+            )
         if not user_set_mdc:
             # Whether a value needs preservation, and by how much, depends on the target, so every feature
             # weighted against the assumed one is named, including those that needed nothing at it. A feature
