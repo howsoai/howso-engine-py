@@ -17,6 +17,7 @@ import pytest
 from rich.console import Console
 from rich.progress import Progress
 
+from howso.client.base import _is_multithreaded_library_type  # pyright: ignore[reportPrivateUsage]
 from howso.client.configuration import ClientOptions, HowsoConfiguration
 from howso.client.exceptions import NoOngoingTaskError
 from howso.utilities import (
@@ -81,7 +82,7 @@ class _FakeClient:
             raise payload
         return payload
 
-    def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
+    def get_trainee_runtime(self, trainee_id) -> dict[str, Any]:  # noqa: ARG002
         if isinstance(self._library_type, Exception):
             raise self._library_type
         return {
@@ -90,25 +91,8 @@ class _FakeClient:
             "versions": {"trainee": "1.0.0", "amalgam": "1.0.0"},
         }
 
-
-class _FakeAmalgam:
-    """Amalgam double reporting a configurable concurrency type."""
-
-    def __init__(self, concurrency: Any = b"MultiThreaded") -> None:  # pyright: ignore[reportMissingSuperCall]
-        self._concurrency = concurrency
-
-    def get_concurrency_type_string(self):
-        if isinstance(self._concurrency, Exception):
-            raise self._concurrency
-        return self._concurrency
-
-
-class _FakeLocalClient(_FakeClient):
-    """Client double running an engine in-process, as the direct client does."""
-
-    def __init__(self, concurrency: Any = b"MultiThreaded", **kwargs: Any) -> None:  # pyright: ignore[reportMissingSuperCall]
-        super().__init__(**kwargs)
-        self.amlg = _FakeAmalgam(concurrency)
+    def is_multithreaded_build(self, trainee_id: str) -> bool:
+        return _is_multithreaded_library_type(self.get_trainee_runtime(trainee_id)["library_type"])
 
 
 class _FakeTrainee:
@@ -2529,88 +2513,31 @@ def test_with_progress_engine_polling_continues_past_no_ongoing_task() -> None:
     assert r.finished_success is True
 
 
-@pytest.mark.parametrize(("library_type", "expected"), [
-    ("mt", True),
-    (" mt ", True),
-    # A multi-threaded variant stays supported, mirroring how "st-omp" exists.
-    ("mt-omp", True),
-    # The value is sometimes carried in Amalgam library postfix form.
-    ("-mt", True),
-    (" -mt ", True),
-    ("st", False),
-    # The OpenMP build is single-threaded despite advertising several threads.
-    ("st-omp", False),
-    ("-st", False),
-    ("-st-omp", False),
-    (None, False),
-    # An unrecognized value is not multi-threaded just because it starts "mt".
-    ("mtx", False),
-    ("mt_single", False),
-    ("", False),
-])
-def test_engine_polling_supported_library_type(library_type, expected):
-    client = _FakeClient(library_type=library_type)
-    assert engine_polling_supported(client, "fake-trainee") is expected
+@pytest.mark.parametrize(("library_type", "expected"), [("mt", True), ("st", False), ("st-omp", False)])
+def test_engine_polling_supported_follows_client_build(library_type: str, expected: bool) -> None:
+    assert engine_polling_supported(_FakeClient(library_type=library_type), "fake-trainee") is expected
 
 
-@pytest.mark.parametrize(("concurrency", "expected"), [
-    (b"MultiThreaded", True),
-    (b"SingleThreaded", False),
-    (b"SingleThreaded+OpenMP", False),
-    ("MultiThreaded", True),          # a str return is understood too
-    (b"  MultiThreaded  ", True),
-])
-def test_engine_polling_supported_uses_in_process_library(concurrency, expected):
-    """A client with an in-process library is asked directly, not via the runtime."""
-    client = _FakeLocalClient(concurrency)
-    assert engine_polling_supported(client, "fake-trainee") is expected
-
-
-def test_engine_polling_supported_prefers_library_over_reported_type():
-    """``library_type`` guesses "mt" for a postfix-less path; the library knows better."""
-    client = _FakeLocalClient(b"SingleThreaded", library_type="mt")
-    assert engine_polling_supported(client, "fake-trainee") is False
-
-
-def test_engine_polling_supported_library_call_raises_is_fail_closed():
-    client = _FakeLocalClient(OSError("no symbol"))
-    assert engine_polling_supported(client, "fake-trainee") is False
-
-
-def test_with_progress_in_process_single_threaded_skips_engine_source():
-    t = _FakeTrainee(_FakeLocalClient(b"SingleThreaded"))
-    r = _RecordingReporter()
-    assert with_progress("Task", t.task_only, reporter=r, polling_interval=0.01) == "task_only-done"
-    assert r.started_sources == ()
-    assert t.client.poll_count == 0
-
-
-def test_engine_polling_supported_runtime_object_attribute():
-    """A client returning an object rather than a mapping is still understood."""
-    class Runtime:
-        library_type = "mt"
-
+def test_engine_polling_supported_asks_about_the_given_trainee() -> None:
+    """The client is asked about the Trainee that would be polled."""
     class Client:
-        def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
-            return Runtime()
+        """Client double whose only multi-threaded Trainee is ``t-42``."""
 
-    assert engine_polling_supported(Client(), "fake-trainee") is True
+        def is_multithreaded_build(self, trainee_id: str) -> bool:
+            """Report a multi-threaded build for ``t-42`` only."""
+            return trainee_id == "t-42"
 
-
-def test_engine_polling_supported_runtime_missing_library_type():
-    class Client:
-        def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
-            return {"tracing_enabled": False}
-
-    assert engine_polling_supported(Client(), "fake-trainee") is False
+    client = Client()
+    assert engine_polling_supported(client, "t-42") is True
+    assert engine_polling_supported(client, "t-7") is False
 
 
-def test_engine_polling_supported_runtime_raises_is_fail_closed():
+def test_engine_polling_supported_build_check_raises_is_fail_closed() -> None:
     client = _FakeClient(library_type=RuntimeError("boom"))  # pyright: ignore[reportArgumentType]
     assert engine_polling_supported(client, "fake-trainee") is False
 
 
-def test_engine_polling_supported_client_without_runtime_method():
+def test_engine_polling_supported_client_without_build_check() -> None:
     """A client that cannot answer must not be assumed safe."""
     assert engine_polling_supported(object(), "fake-trainee") is False
 
@@ -2867,10 +2794,10 @@ def test_trainee_methods_are_not_decorated():
 
 
 class _OwnerClient:
-    """A client double: owns the runtime lookup, takes trainee_id per call."""
+    """A client double: answers the build check, takes trainee_id per call."""
 
-    def get_trainee_runtime(self, trainee_id):  # noqa: ARG002
-        return {"library_type": "mt"}
+    def is_multithreaded_build(self, trainee_id: str) -> bool:  # noqa: ARG002
+        return True
 
     def analyze(self, trainee_id, **kwargs):  # noqa: ANN003, ARG002
         return "done"
