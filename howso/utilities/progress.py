@@ -1893,32 +1893,21 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
     Polling a **single-threaded** engine while it is executing terminates the
     process: the engine may die before Python can raise, so no ``try``/``except``
     around the poll can contain it. This check is therefore preventative and
-    *fail-closed* — polling is reported as supported only when it can be
-    positively confirmed safe.
+    *fail-closed* — polling is reported as supported only when the client's
+    ``is_multithreaded_build`` confirms a multi-threaded engine. A client that
+    lacks that method, or raises from it, is reported as unsupported.
 
-    Two sources answer this, in order:
-
-    * A client running an engine in-process exposes the library as ``amlg``,
-      which reports its own concurrency type authoritatively.
-    * Any other client is asked via ``client.get_trainee_runtime``, which every
-      client implements, and only the ``mt`` library type is treated as safe.
-
-    A Trainee on a single-threaded library — and any Trainee whose engine
-    cannot be identified — is reported as unsupported. Note that thread
-    *counts* are not a usable signal here: a single-threaded build with OpenMP
-    reports several threads, and a multi-threaded build can be pinned to one.
-
-    ``HOWSO_ENGINE_PROGRESS=off`` (or ``0``/``no``/``false``) forces the same
-    result. No value of that variable can force polling *on*, because doing so
-    would re-enable a hard process crash.
+    ``HOWSO_ENGINE_PROGRESS=off`` (or ``0``/``no``/``false``) forces the
+    unsupported result. No value of that variable can force polling *on*,
+    because doing so would re-enable a hard process crash.
 
     Parameters
     ----------
     client : Any
         The client whose ``get_progress`` would be polled.
     trainee_id : str or None
-        The Trainee that would be polled. Without one there is nothing to ask
-        about, and polling is reported as unsupported.
+        The Trainee that would be polled. Without one there is nothing to poll,
+        and polling is reported as unsupported.
 
     Returns
     -------
@@ -1930,47 +1919,12 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
     if _parse_tristate(os.environ.get("HOWSO_ENGINE_PROGRESS")) is False:
         return False
     try:
-        amlg = getattr(client, "amlg", None)
-        if amlg is not None:
-            # An in-process library identifies its own build exactly, which
-            # ``library_type`` cannot always do: it is derived from the library
-            # filename, so it reports "mt" for a path carrying no postfix.
-            concurrency = amlg.get_concurrency_type_string()
-            if isinstance(concurrency, bytes):
-                concurrency = concurrency.decode("utf-8", errors="replace")
-            supported = concurrency.strip().lstrip().startswith("MultiThreaded")
-        else:
-            # A remote client reports the library type it provisioned. Only
-            # "mt" is safe; "st" and the OpenMP builds' "st-omp" are not.
-            runtime = client.get_trainee_runtime(trainee_id)
-            library_type = (
-                runtime.get("library_type")
-                if isinstance(runtime, Mapping)
-                else getattr(runtime, "library_type", None)
-            )
-            supported = "mt" in str(library_type).strip().split("-")
+        return client.is_multithreaded_build(trainee_id)
     except Exception:  # noqa: BLE001
         # A client that cannot answer, a Trainee the service no longer knows
         # about, or an unexpected runtime shape all mean the same thing here:
-        # we cannot prove the engine is multi-threaded, so we must assume it
-        # is not.
+        # the engine cannot be proven multi-threaded, so it is assumed not to be.
         return False
-    return supported
-
-
-def _cached_polling_support(trainee: Any, client: Any, trainee_id: str | None) -> bool:
-    """
-    Read a Trainee's cached polling support, falling back to asking directly.
-
-    A ``Trainee`` resolves :func:`engine_polling_supported` once and caches it
-    for its lifetime, since the library type is fixed when the Trainee is
-    created. Other bound-method hosts have no such cache and are asked on
-    every call.
-    """
-    supported = getattr(trainee, "supports_engine_progress", None)
-    if supported is None:
-        return engine_polling_supported(client, trainee_id)
-    return bool(supported)
 
 
 def _resolve_owner(
@@ -2008,10 +1962,10 @@ def _resolve_owner(
     owner = getattr(bound_func, "__self__", None)
     if owner is None:
         return None, None, None
-    # ``get_trainee_runtime`` is the same duck-type ``engine_polling_supported``
-    # uses to interrogate a client, so anything it accepts is accepted here.
+    # ``is_multithreaded_build`` is the method ``engine_polling_supported``
+    # calls on a client, so anything it accepts is accepted here.
     client = getattr(owner, "client", None)
-    if client is None and hasattr(owner, "get_trainee_runtime"):
+    if client is None and hasattr(owner, "is_multithreaded_build"):
         client = owner
     trainee_id = getattr(owner, "id", None)
     if trainee_id is None:
@@ -2085,14 +2039,14 @@ def with_progress(  # noqa: PLR0915
         and kwargs.get("task_id") is None
     )
 
-    trainee, client, trainee_id = _resolve_owner(bound_func, args, kwargs)
+    _, client, trainee_id = _resolve_owner(bound_func, args, kwargs)
 
     # Engine polling is only useful when we can actually reach get_progress,
     # and only safe when the engine behind it tolerates a concurrent poll. A
     # single-threaded engine does not: polling it terminates the process, so
     # this gate must be preventative — the ``except`` clauses in ``_poll``
     # below are powerless against it.
-    has_task_id = has_task_id and _cached_polling_support(trainee, client, trainee_id)
+    has_task_id = has_task_id and engine_polling_supported(client, trainee_id)
 
     sources: list[ProgressSource] = []
     if has_batch_cb:
