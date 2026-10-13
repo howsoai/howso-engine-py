@@ -3085,14 +3085,14 @@ class Trainee(BaseTrainee):
         else:
             raise AssertionError("Client must have the 'get_num_training_cases' method.")
 
-    def get_trainee_mass(self) -> int:
+    def get_trainee_mass(self) -> float:
         """
         Return the mass as the total of all the summed up case weights of
         all the cases in the Trainee.
 
         Returns
         -------
-        int
+        float
             The mass of cases in the trainee
         """
         if isinstance(self.client, AbstractHowsoClient):

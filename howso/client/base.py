@@ -5559,7 +5559,7 @@ class AbstractHowsoClient(ABC):
             return ret.get("count", 0)
         return 0
 
-    def get_trainee_mass(self, trainee_id: str) -> int:
+    def get_trainee_mass(self, trainee_id: str) -> float:
         """
         Return the mass as the total of all the summed up case weights of
         all the cases in the Trainee.
@@ -5571,7 +5571,7 @@ class AbstractHowsoClient(ABC):
 
         Returns
         -------
-        int
+        float
             The mass of cases in the trainee
         """
         trainee_id = self._resolve_trainee(trainee_id).id
