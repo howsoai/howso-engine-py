@@ -915,6 +915,7 @@ class Trainee(BaseTrainee):
         min_case_weight: float = 0.05,
         min_num_cases: int = 10_000,
         reduce_max_cases: int = 50_000,
+        reservoir_size: int = 10_000,
         rel_threshold_map: AblationThresholdMap | None = None,
         relative_prediction_threshold_map: Mapping[str, float] | None = None,
         residual_prediction_features: Collection[str] | None = None,
@@ -982,6 +983,8 @@ class Trainee(BaseTrainee):
             and the prediction <= (case value + MAX).
         reduce_max_cases: int, default 50,000
             The maximum number of cases that may remain after a call to reduce_data.
+        reservoir_size: int, default 10,000
+            The number of cases stored in the reservoir. 0 means no reservoir.
         relative_prediction_threshold_map : map of str -> (float, float), optional
             For each of the features specified, will ablate a case if
             abs(prediction - case value) / prediction <= relative threshold
@@ -1010,6 +1013,7 @@ class Trainee(BaseTrainee):
                 min_case_weight=min_case_weight,
                 min_num_cases=min_num_cases,
                 reduce_max_cases=reduce_max_cases,
+                reservoir_size=reservoir_size,
                 rel_threshold_map=rel_threshold_map,
                 relative_prediction_threshold_map=relative_prediction_threshold_map,
                 residual_prediction_features=residual_prediction_features,
@@ -3080,6 +3084,21 @@ class Trainee(BaseTrainee):
             return self.client.get_num_training_cases(self.id)
         else:
             raise AssertionError("Client must have the 'get_num_training_cases' method.")
+
+    def get_trainee_mass(self) -> int:
+        """
+        Return the mass as the total of all the summed up case weights of
+        all the cases in the Trainee.
+
+        Returns
+        -------
+        int
+            The mass of cases in the trainee
+        """
+        if isinstance(self.client, AbstractHowsoClient):
+            return self.client.get_trainee_mass(self.id)
+        else:
+            raise AssertionError("Client must have the 'get_trainee_mass' method.")
 
     def get_num_lags_needed(
         self,

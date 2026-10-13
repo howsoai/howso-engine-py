@@ -5159,6 +5159,7 @@ class AbstractHowsoClient(ABC):
         min_case_weight: float = 0.05,
         min_num_cases: int = 10_000,
         reduce_max_cases: int = 50_000,
+        reservoir_size: int = 10_000,
         rel_threshold_map: AblationThresholdMap | None = None,
         relative_prediction_threshold_map: Mapping[str, float] | None = None,
         residual_prediction_features: Collection[str] | None = None,
@@ -5222,6 +5223,8 @@ class AbstractHowsoClient(ABC):
             the minimum number of cases that may remain after data reduction.
         reduce_max_cases: int, default 50,000
             The maximum number of cases that may remain after a call to reduce_data.
+        reservoir_size: int, default 10,000
+            The number of cases stored in the reservoir. 0 means no reservoir.
         rel_threshold_map : AblationThresholdMap, optional
             A map of measure names (any of the prediction stats, except for ``confusion_matrix``)
             to a map of feature names to threshold value. Absolute thresholds will cause ablation
@@ -5255,6 +5258,7 @@ class AbstractHowsoClient(ABC):
             min_case_weight=min_case_weight,
             min_num_cases=min_num_cases,
             reduce_max_cases=reduce_max_cases,
+            reservoir_size=reservoir_size,
             rel_threshold_map=rel_threshold_map,
             relative_prediction_threshold_map=relative_prediction_threshold_map,
             residual_prediction_features=residual_prediction_features,
@@ -5553,6 +5557,27 @@ class AbstractHowsoClient(ABC):
         ret = self.execute(trainee_id, "get_num_training_cases", {})
         if isinstance(ret, dict):
             return ret.get("count", 0)
+        return 0
+
+    def get_trainee_mass(self, trainee_id: str) -> int:
+        """
+        Return the mass as the total of all the summed up case weights of
+        all the cases in the Trainee.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The Id of the Trainee to retrieve the mass from.
+
+        Returns
+        -------
+        int
+            The mass of cases in the trainee
+        """
+        trainee_id = self._resolve_trainee(trainee_id).id
+        ret = self.execute(trainee_id, "get_num_training_cases", {})
+        if isinstance(ret, dict):
+            return ret.get("mass", 0)
         return 0
 
     def get_num_lags_needed(
