@@ -149,8 +149,6 @@ class Trainee(BaseTrainee):
         self._created: bool = False
         self._updating: bool = False
         self._was_saved: bool = False
-        # Must precede the client assignment that follows.
-        self._supports_engine_progress: bool | None = None  # lazy loaded
         # NOTE: self.client is a accessor property see setter and getter below.
         self.client = client or get_client()
 
@@ -220,9 +218,6 @@ class Trainee(BaseTrainee):
         if not isinstance(client, HowsoPandasClientMixin):
             raise HowsoError("``client`` must be a HowsoPandasClient")
         self._client = client
-        # Engine progress support is a property of the client and the Trainee
-        # it serves, so a new client invalidates the cached answer.
-        self._supports_engine_progress = None
 
     @property
     def supports_engine_progress(self) -> bool:
@@ -231,21 +226,21 @@ class Trainee(BaseTrainee):
 
         Polling a single-threaded engine while it works terminates the
         process, so :func:`~howso.utilities.engine_polling_supported` reports
-        support only for Trainees it can confirm are multi-threaded. The
-        library type is fixed when the Trainee is created, so the answer is
-        resolved once and cached for the life of this instance.
+        support only for Trainees whose client confirms a multi-threaded build.
+
+        The answer is a snapshot taken on each access. A direct client's
+        library type is fixed for the life of the process and is read from the
+        in-process library; other clients may answer differently over the
+        life of a Trainee.
 
         Returns
         -------
         bool
             True only when engine progress polling is confirmed safe.
         """
-        if self._supports_engine_progress is None:
-            # Lazy load: requires a created Trainee to ask the runtime about.
-            if not self._created:
-                return False
-            self._supports_engine_progress = engine_polling_supported(self.client, self.id)
-        return self._supports_engine_progress
+        if not self._created:
+            return False
+        return engine_polling_supported(self.client, self.id)
 
     @property
     def project(self) -> Project | None:

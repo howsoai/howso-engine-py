@@ -73,6 +73,13 @@ if TYPE_CHECKING:
     from .configuration import HowsoConfiguration
 
 
+def _is_multithreaded_library_type(library_type: str | None) -> bool:
+    """Report whether a Trainee runtime ``library_type`` names a multi-threaded build."""
+    if not isinstance(library_type, str):
+        return False
+    return "mt" in library_type.strip().split("-")
+
+
 class AbstractHowsoClient(ABC):
     """The base definition of the Howso client interface."""
 
@@ -463,6 +470,37 @@ class AbstractHowsoClient(ABC):
             Trainee can never usefully run multiple concurrent requests.
         """
         return None
+
+    def is_multithreaded_build(self, trainee_id: str) -> bool:
+        """
+        Report whether a Trainee's engine runs on a multi-threaded Amalgam build.
+
+        A multi-threaded build tolerates concurrent calls into one engine: it
+        can be polled for progress while it works and can serve requests from
+        several threads at once. A single-threaded build, including the OpenMP
+        build, does neither safely.
+
+        The answer is a snapshot. A client whose Trainees can change library
+        type may answer differently on a later call.
+
+        This implementation reads ``library_type`` from
+        :meth:`get_trainee_runtime` and reports True only for the ``mt``
+        library type. Clients that can identify their build more directly
+        override it.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee.
+
+        Returns
+        -------
+        bool
+            True when the build is confirmed multi-threaded; False for a
+            single-threaded build or an unrecognized library type.
+        """
+        runtime = self.get_trainee_runtime(trainee_id)
+        return _is_multithreaded_library_type(runtime.get("library_type"))
 
     @abstractmethod
     def query_trainees(self, search_terms: str | None = None) -> list[dict]:

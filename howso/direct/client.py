@@ -22,6 +22,7 @@ import warnings
 from amalgam.api import Amalgam
 import certifi
 from packaging.version import parse as parse_version
+from typing_extensions import override
 import urllib3
 from urllib3.util import Retry, Timeout
 
@@ -83,6 +84,13 @@ def squelch_logs(log_level: int) -> Generator[None, None, None]:
         yield
     finally:
         logging.disable(_old_level)
+
+
+def _is_multithreaded_concurrency(concurrency: bytes | str) -> bool:
+    """Report whether an Amalgam concurrency type string names a multi-threaded build."""
+    if isinstance(concurrency, bytes):
+        concurrency = concurrency.decode("utf-8", errors="replace")
+    return concurrency.strip().startswith("MultiThreaded")
 
 
 class HowsoDirectClient(AbstractHowsoClient):
@@ -1436,6 +1444,29 @@ class HowsoDirectClient(AbstractHowsoClient):
             tracing_enabled=self._trace_enabled,
             versions=TraineeVersion(trainee=trainee_version, amalgam=amlg_version)
         )
+
+    @override
+    def is_multithreaded_build(self, trainee_id: str) -> bool:
+        """
+        Report whether this client's Amalgam library is a multi-threaded build.
+
+        The in-process library reports its own concurrency type. That is a
+        property of the process, so every Trainee on this client gets the same
+        answer and ``trainee_id`` is not consulted. ``library_type`` from
+        :meth:`get_trainee_runtime` is derived from the library filename and
+        reports ``mt`` for a path carrying no postfix, so it is not used here.
+
+        Parameters
+        ----------
+        trainee_id : str
+            The identifier of the Trainee. Not consulted.
+
+        Returns
+        -------
+        bool
+            True when the loaded library is a multi-threaded build.
+        """
+        return _is_multithreaded_concurrency(self.amlg.get_concurrency_type_string())
 
     def query_trainees(self, search_terms: str | None = None) -> list[dict[str, str]]:
         """
