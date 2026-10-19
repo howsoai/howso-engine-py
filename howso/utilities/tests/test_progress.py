@@ -91,7 +91,7 @@ class _FakeClient:
             "versions": {"trainee": "1.0.0", "amalgam": "1.0.0"},
         }
 
-    def is_multithreaded_build(self, trainee_id: str) -> bool:
+    def is_multithreaded(self, trainee_id: str) -> bool:
         return _is_multithreaded_library_type(self.get_trainee_runtime(trainee_id)["library_type"])
 
 
@@ -2523,7 +2523,7 @@ def test_engine_polling_supported_asks_about_the_given_trainee() -> None:
     class Client:
         """Client double whose only multi-threaded Trainee is ``t-42``."""
 
-        def is_multithreaded_build(self, trainee_id: str) -> bool:
+        def is_multithreaded(self, trainee_id: str) -> bool:
             """Report a multi-threaded build for ``t-42`` only."""
             return trainee_id == "t-42"
 
@@ -2796,7 +2796,7 @@ def test_trainee_methods_are_not_decorated():
 class _OwnerClient:
     """A client double: answers the build check, takes trainee_id per call."""
 
-    def is_multithreaded_build(self, trainee_id: str) -> bool:  # noqa: ARG002
+    def is_multithreaded(self, trainee_id: str) -> bool:  # noqa: ARG002
         return True
 
     def analyze(self, trainee_id, **kwargs):  # noqa: ANN003, ARG002

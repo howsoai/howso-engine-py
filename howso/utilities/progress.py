@@ -1894,7 +1894,7 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
     process: the engine may die before Python can raise, so no ``try``/``except``
     around the poll can contain it. This check is therefore preventative and
     *fail-closed* — polling is reported as supported only when the client's
-    ``is_multithreaded_build`` confirms a multi-threaded engine. A client that
+    ``is_multithreaded`` confirms a multi-threaded engine. A client that
     lacks that method, or raises from it, is reported as unsupported.
 
     ``HOWSO_ENGINE_PROGRESS=off`` (or ``0``/``no``/``false``) forces the
@@ -1919,7 +1919,7 @@ def engine_polling_supported(client: Any, trainee_id: str | None) -> bool:
     if _parse_tristate(os.environ.get("HOWSO_ENGINE_PROGRESS")) is False:
         return False
     try:
-        return client.is_multithreaded_build(trainee_id)
+        return client.is_multithreaded(trainee_id)
     except Exception:  # noqa: BLE001
         # A client that cannot answer, a Trainee the service no longer knows
         # about, or an unexpected runtime shape all mean the same thing here:
@@ -1962,10 +1962,10 @@ def _resolve_owner(
     owner = getattr(bound_func, "__self__", None)
     if owner is None:
         return None, None, None
-    # ``is_multithreaded_build`` is the method ``engine_polling_supported``
-    # calls on a client, so anything it accepts is accepted here.
+    # ``is_multithreaded`` is the method ``engine_polling_supported`` calls on
+    # a client, so anything it accepts is accepted here.
     client = getattr(owner, "client", None)
-    if client is None and hasattr(owner, "is_multithreaded_build"):
+    if client is None and hasattr(owner, "is_multithreaded"):
         client = owner
     trainee_id = getattr(owner, "id", None)
     if trainee_id is None:

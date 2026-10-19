@@ -471,7 +471,7 @@ class AbstractHowsoClient(ABC):
         """
         return None
 
-    def is_multithreaded_build(self, trainee_id: str) -> bool:
+    def is_multithreaded(self, trainee_id: str) -> bool:
         """
         Report whether a Trainee's engine runs on a multi-threaded Amalgam build.
 

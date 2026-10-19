@@ -262,6 +262,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 UnsupportedArgumentWarning, stacklevel=2)
         amlg_params = {k: v for k, v in amlg_params.items() if k in allowed_amlg_params}
         self.amlg = Amalgam(**amlg_params)  # pyright: ignore[reportArgumentType]
+        self._multithreaded = _is_multithreaded_concurrency(self.amlg.get_concurrency_type_string())
         if gc_params:
             self.set_garbage_collection_params(gc_params)
 
@@ -1446,13 +1447,14 @@ class HowsoDirectClient(AbstractHowsoClient):
         )
 
     @override
-    def is_multithreaded_build(self, trainee_id: str) -> bool:
+    def is_multithreaded(self, trainee_id: str) -> bool:
         """
         Report whether this client's Amalgam library is a multi-threaded build.
 
-        The in-process library reports its own concurrency type. That is a
-        property of the process, so every Trainee on this client gets the same
-        answer and ``trainee_id`` is not consulted. ``library_type`` from
+        The in-process library reports its own concurrency type, which this
+        client reads once when it loads the library. That is a property of the
+        process, so every Trainee on this client gets the same answer and
+        ``trainee_id`` is not consulted. ``library_type`` from
         :meth:`get_trainee_runtime` is derived from the library filename and
         reports ``mt`` for a path carrying no postfix, so it is not used here.
 
@@ -1466,7 +1468,7 @@ class HowsoDirectClient(AbstractHowsoClient):
         bool
             True when the loaded library is a multi-threaded build.
         """
-        return _is_multithreaded_concurrency(self.amlg.get_concurrency_type_string())
+        return self._multithreaded
 
     def query_trainees(self, search_terms: str | None = None) -> list[dict[str, str]]:
         """

@@ -66,14 +66,14 @@ def test_direct_client_reports_its_library_build(trainee: Trainee) -> None:
     client = trainee.client
     assert isinstance(client, HowsoDirectClient)
     expected = trainee.get_runtime()["library_type"] == "mt"
-    assert client.is_multithreaded_build(trainee.id) is expected
+    assert client.is_multithreaded(trainee.id) is expected
 
 
 def test_direct_client_answer_does_not_depend_on_trainee(trainee: Trainee) -> None:
     """A direct client's build is a property of the process, not of a Trainee."""
     client = trainee.client
     assert isinstance(client, HowsoDirectClient)
-    assert client.is_multithreaded_build("no-such-trainee") is client.is_multithreaded_build(trainee.id)
+    assert client.is_multithreaded("no-such-trainee") is client.is_multithreaded(trainee.id)
 
 
 def test_base_implementation_reads_runtime_library_type(trainee: Trainee) -> None:
@@ -81,4 +81,4 @@ def test_base_implementation_reads_runtime_library_type(trainee: Trainee) -> Non
     client = trainee.client
     assert isinstance(client, AbstractHowsoClient)
     expected = trainee.get_runtime()["library_type"] == "mt"
-    assert AbstractHowsoClient.is_multithreaded_build(client, trainee.id) is expected
+    assert AbstractHowsoClient.is_multithreaded(client, trainee.id) is expected
