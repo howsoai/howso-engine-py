@@ -101,7 +101,7 @@ def test_infer_feature_attributes(adc):
         "class": "nominal"
     }
 
-    features = infer_feature_attributes(adc)
+    features = infer_feature_attributes(adc, enable_suggestions=False)
 
     for feature, attributes in features.items():
         assert expected_types[feature] == attributes['type']
@@ -144,7 +144,7 @@ def test_infer_feature_attributes(adc):
 )
 def test_integer_nominality(feature, nominality, adc):
     """Exercise infer_feature_attributes for integers and their nominality."""
-    inferred_features = infer_feature_attributes(adc, id_feature_name=['id_no'])
+    inferred_features = infer_feature_attributes(adc, id_feature_name=['id_no'], enable_suggestions=False)
     assert inferred_features[feature]['type'] == nominality
 
 
@@ -194,7 +194,7 @@ def test_infer_time_features(adc, data, is_time, expected_format, provided_forma
         assert feature_type == FeatureType.TIME
         features = infer_feature_attributes(adc, tight_bounds=['a'],
                                             datetime_feature_formats={'a': provided_format},
-                                            default_time_zone="UTC")
+                                            default_time_zone="UTC", enable_suggestions=False)
         assert features['a']['type'] == 'continuous'
         assert features['a']['date_time_format'] == expected_format
     else:
@@ -244,7 +244,7 @@ def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, exp
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         features = infer_feature_attributes(adc, tight_bounds=tight_bounds,
-                                            datetime_feature_formats={'a': provided_format})
+                                            datetime_feature_formats={'a': provided_format}, enable_suggestions=False)
     assert features['a']['type'] == 'continuous'
     assert 'cycle_length' in features['a']
     assert features['a']['cycle_length'] == cycle_length
@@ -276,7 +276,7 @@ def test_infer_time_feature_bounds(adc, data, tight_bounds, provided_format, exp
 ])
 def test_dependent_features(adc, should_include, dependent_features):
     """Test depdendent features are added to feature attributes dict."""
-    features = infer_feature_attributes(adc, dependent_features=dependent_features)
+    features = infer_feature_attributes(adc, dependent_features=dependent_features, enable_suggestions=False)
 
     if should_include:
         # Should include dependent features
@@ -348,7 +348,7 @@ def test_infer_feature_bounds(adc, data, tight_bounds, expected_bounds):
     convert_data(DataFrameData(df), adc)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
+        features = infer_feature_attributes(adc, tight_bounds=tight_bounds, enable_suggestions=False)
     assert features['a']['type'] == 'continuous'
     assert 'bounds' in features['a']
     bounds = features['a']['bounds']
@@ -379,10 +379,10 @@ def test_infer_feature_bounds(adc, data, tight_bounds, expected_bounds):
 ])
 def test_tight_bounds(adc, tight_bounds):
     """Test the tight_bounds argument with a features list."""
-    features = infer_feature_attributes(adc, tight_bounds=tight_bounds)
+    features = infer_feature_attributes(adc, tight_bounds=tight_bounds, enable_suggestions=False)
 
-    all_tight_bounds = infer_feature_attributes(adc, tight_bounds=features.get_names())
-    no_tight_bounds = infer_feature_attributes(adc)
+    all_tight_bounds = infer_feature_attributes(adc, tight_bounds=features.get_names(), enable_suggestions=False)
+    no_tight_bounds = infer_feature_attributes(adc, enable_suggestions=False)
 
     for feature in features.keys():
         if 'bounds' not in features[feature]:
@@ -423,7 +423,7 @@ def test_preset_feature_types(adc, data, types, expected_types, is_valid):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(adc, types=types, )
+            features = infer_feature_attributes(adc, types=types, enable_suggestions=False,)
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]['type'] == expected_type
@@ -433,7 +433,7 @@ def test_preset_feature_types(adc, data, types, expected_types, is_valid):
                     assert 'allow_null' in features[feature_name].get('bounds', {}).keys()
         else:
             with pytest.raises(ValueError):
-                infer_feature_attributes(adc, types=types)
+                infer_feature_attributes(adc, types=types, enable_suggestions=False)
 
 
 @pytest.mark.parametrize("adc", [
@@ -495,7 +495,7 @@ def test_observed_ordinal_values(adc, series, ordinals, min_value, max_value):
     convert_data(DataFrameData(data), adc)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        features = infer_feature_attributes(adc, ordinal_feature_values={'a': ordinals})
+        features = infer_feature_attributes(adc, ordinal_feature_values={'a': ordinals}, enable_suggestions=False)
     assert features['a']['bounds']['observed_min'] == min_value
     assert features['a']['bounds']['observed_max'] == max_value
 
@@ -547,7 +547,7 @@ def test_constrained_date_bounds(adc):
     convert_data(DataFrameData(df), adc)
     with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
         # Loose bounds may cause min bound to be > max bound if the date format is constrained
-        infer_feature_attributes(adc, datetime_feature_formats={"date": "%m"})
+        infer_feature_attributes(adc, datetime_feature_formats={"date": "%m"}, enable_suggestions=False)
 
 
 def test_parquet_dataset_with_s3():
@@ -559,21 +559,21 @@ def test_parquet_dataset_with_s3():
     ]
     for src in data_sources:
         adc = make_data_source(src, storage_options=anon_options)
-        infer_feature_attributes(adc)
+        infer_feature_attributes(adc, enable_suggestions=False)
 
 
 def test_ambiguous_datetime_format():
     """Test the NYPD arrest dataset."""
     adc = make_data_source(nypd_arrest_pq_path)  # Contains a non-ISO8601 date column
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
-        infer_feature_attributes(adc)
+        infer_feature_attributes(adc, enable_suggestions=False)
 
 
 def test_datetime_empty_time_values():
     """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
     df = pd.DataFrame({'a': ['2025-08-22T00:00:00'], 'b': ['2025-08-22 00:00:00']})
     adc = make_data_source(df)
-    features = infer_feature_attributes(adc, default_time_zone='UTC')
+    features = infer_feature_attributes(adc, default_time_zone='UTC', enable_suggestions=False)
     assert features['a']['date_time_format'] == '%Y-%m-%dT%H:%M:%S'
     assert features['b']['date_time_format'] == '%Y-%m-%d %H:%M:%S'
 
@@ -588,7 +588,7 @@ def test_empty_string_first_non_nulls():
     df = pd.DataFrame({'a': ['', 'ahoy', 'howdy'], 'b': ['\n', '8/26/2025', '8/3/1999']})
     adc = make_data_source(df)
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
-        infer_feature_attributes(adc)
+        infer_feature_attributes(adc, enable_suggestions=False)
 
 
 def test_dataframe_datetime64_dtype_column():
@@ -597,7 +597,7 @@ def test_dataframe_datetime64_dtype_column():
     # Convert to datetime64 dtype
     df['a'] = df['a'].astype('datetime64[ns]')
     adc = make_data_source(df)
-    infer_feature_attributes(adc)
+    infer_feature_attributes(adc, enable_suggestions=False)
 
 
 @pytest.mark.parametrize("adc", [
@@ -631,7 +631,7 @@ def test_infer_tokenizable_string(adc):
     }
     df = pd.DataFrame(data)
     convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(adc, types={"continuous": ["review"]})
+    feature_attributes = infer_feature_attributes(adc, types={"continuous": ["review"]}, enable_suggestions=False)
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
@@ -664,7 +664,7 @@ def test_boolean_detection(adc, values, expected_data_type):
     # them would infer the feature from the union of every case's values.
     df = pd.DataFrame({"boolean": values})
     convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(adc)
+    feature_attributes = infer_feature_attributes(adc, enable_suggestions=False)
     assert feature_attributes["boolean"]["data_type"] == expected_data_type
 
 
@@ -692,9 +692,9 @@ def test_dependent_features_uniques_warning(adc):
         warnings.simplefilter("error")
         infer_feature_attributes(adc, dependent_features={"d": ["b", "c"]}, enable_suggestions=False)
     with pytest.warns(UserWarning, match="- a\n"):
-        infer_feature_attributes(adc, dependent_features={"d": ["b", "c", "a"]})
+        infer_feature_attributes(adc, dependent_features={"d": ["b", "c", "a"]}, enable_suggestions=False)
     with pytest.warns(UserWarning, match="- a\n"):
-        infer_feature_attributes(adc, dependent_features={"a": ["b", "c", "d"]})
+        infer_feature_attributes(adc, dependent_features={"a": ["b", "c", "d"]}, enable_suggestions=False)
 
 
 def _percentile_df(n: int = 10_000) -> pd.DataFrame:
@@ -801,7 +801,7 @@ def test_sql_date_column(tmp_path):
 
         connector = SQLTableData(uri)
 
-        features = infer_feature_attributes(connector, default_time_zone="UTC")
+        features = infer_feature_attributes(connector, default_time_zone="UTC", enable_suggestions=False)
         assert features["event_date"]["data_type"] == "formatted_date_time"
         assert features["event_date"]["date_time_format"] == "%Y-%m-%d"
 
@@ -917,7 +917,7 @@ def test_datetime_beginning_at_midnight_keeps_its_time(adc, tz):
     })
     convert_data(DataFrameData(df), adc)
 
-    features = infer_feature_attributes(adc, default_time_zone="UTC")
+    features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
 
     assert features["when"]["original_type"]["data_type"] == "datetime"
     assert "%H:%M:%S" in features["when"]["date_time_format"]
@@ -942,7 +942,7 @@ def test_date_only_column_is_still_a_date(adc):
     })
     convert_data(DataFrameData(df), adc)
 
-    features = infer_feature_attributes(adc, default_time_zone="UTC")
+    features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
 
     assert features["when"]["original_type"]["data_type"] == "date"
     assert features["when"]["date_time_format"] == "%Y-%m-%d"
@@ -964,7 +964,7 @@ def test_timezone_aware_datetime_retains_its_zone(adc):
     })
     convert_data(DataFrameData(df), adc)
 
-    features = infer_feature_attributes(adc, default_time_zone="UTC")
+    features = infer_feature_attributes(adc, default_time_zone="UTC", enable_suggestions=False)
 
     assert features["when"]["original_type"]["data_type"] == "datetime"
     assert features["when"]["original_type"].get("timezone") == "UTC"

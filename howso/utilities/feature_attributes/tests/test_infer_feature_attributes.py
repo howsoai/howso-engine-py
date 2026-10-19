@@ -113,7 +113,7 @@ def test_infer_features_attributes():
         "class": "nominal"
     }
 
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
 
     for feature, attributes in features.items():
         assert expected_types[feature] == attributes["type"]
@@ -148,7 +148,7 @@ def test_infer_features_attributes():
 def test_integer_nominality(feature, nominality):
     """Exercise infer_feature_attributes for integers and their nominality."""
     df = pd.read_csv(int_path)
-    inferred_features = infer_feature_attributes(df, id_feature_name=["id_no"])
+    inferred_features = infer_feature_attributes(df, id_feature_name=["id_no"], enable_suggestions=False)
     assert inferred_features[feature]["type"] == nominality
 
 
@@ -252,7 +252,7 @@ def test_infer_time_features(data, is_time, expected_format, provided_format):
     if is_time:
         assert feature_type == FeatureType.TIME
         features = infer_feature_attributes(data, tight_bounds=["a"],
-                                            datetime_feature_formats={"a": provided_format})
+                                            datetime_feature_formats={"a": provided_format}, enable_suggestions=False)
         assert features["a"]["type"] == "continuous"
         assert features["a"]["date_time_format"] == expected_format
     else:
@@ -288,7 +288,7 @@ def test_infer_time_features(data, is_time, expected_format, provided_format):
 def test_infer_time_feature_bounds(data, tight_bounds, provided_format, expected_bounds, cycle_length):
     """Test that IFA correctly calculates the bounds and cycle length of time-only features."""
     features = infer_feature_attributes(data, tight_bounds=tight_bounds,
-                                        datetime_feature_formats={"a": provided_format})
+                                        datetime_feature_formats={"a": provided_format}, enable_suggestions=False)
     assert features["a"]["type"] == "continuous"
     assert "cycle_length" in features["a"]
     assert features["a"]["cycle_length"] == cycle_length
@@ -313,7 +313,7 @@ def test_get_feature_type_raises(data, data_type):
 
     with pytest.raises(HowsoError):
         df = pd.DataFrame([[getattr(np, data_type)(data)]], columns=["a"])
-        infer_feature_attributes(df)
+        infer_feature_attributes(df, enable_suggestions=False)
 
 
 def test_excessive_float_precision_warning():
@@ -357,9 +357,9 @@ def test_column_names(should_fail, data):
     if should_fail:
         expected_msg = r"Unexpected DataFrame column name format"
         with pytest.raises(ValueError, match=expected_msg):
-            infer_feature_attributes(df)
+            infer_feature_attributes(df, enable_suggestions=False)
     else:
-        features = infer_feature_attributes(df)
+        features = infer_feature_attributes(df, enable_suggestions=False)
         assert features is not None
 
 
@@ -374,7 +374,7 @@ def test_column_names(should_fail, data):
 def test_dependent_features(should_include, dependent_features):
     """Test depdendent features are added to feature attributes dict."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, dependent_features=dependent_features)
+    features = infer_feature_attributes(df, dependent_features=dependent_features, enable_suggestions=False)
 
     if should_include:
         # Should include dependent features
@@ -506,7 +506,7 @@ def test_infer_feature_bounds(data, tight_bounds, expected_bounds):
     df = pd.DataFrame(pd.Series(data), columns=["a"])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        features = infer_feature_attributes(df, tight_bounds=tight_bounds)
+        features = infer_feature_attributes(df, tight_bounds=tight_bounds, enable_suggestions=False)
     assert features["a"]["type"] == "continuous"
     assert "bounds" in features["a"]
     bounds = features["a"]["bounds"]
@@ -522,7 +522,7 @@ def test_to_json() -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        inferred_features = infer_feature_attributes(df)
+        inferred_features = infer_feature_attributes(df, enable_suggestions=False)
 
     to_json = inferred_features.to_json()
     assert isinstance(to_json, str)
@@ -542,7 +542,7 @@ def test_to_json() -> None:
 def test_get_parameters(dependent_features):
     """Test the get_parameters() method."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df, dependent_features=dependent_features)
+    features = infer_feature_attributes(df, dependent_features=dependent_features, enable_suggestions=False)
 
     # Verify dependent_features
     assert "dependent_features" in features.get_parameters()
@@ -553,7 +553,7 @@ def test_get_parameters(dependent_features):
 def test_get_names_without():
     """Test the get_names() method."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
 
     all_features = list(df)
 
@@ -583,7 +583,7 @@ def test_get_names_without():
 def test_get_names_types(types, data_types, num):
     """Test the get_names() method with the types and/or data_types parameter(s)."""
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
     names = features.get_names(types=types, data_types=data_types)
     assert len(names) == num
 
@@ -591,7 +591,7 @@ def test_get_names_types(types, data_types, num):
 def test_copy():
     """Test that copy works as expected."""
     df = pd.read_csv(iris_path)
-    f_orig = infer_feature_attributes(df)
+    f_orig = infer_feature_attributes(df, enable_suggestions=False)
     f_copy = copy(f_orig)
 
     assert f_copy.params == f_orig.params
@@ -617,10 +617,10 @@ def test_copy():
 def test_tight_bounds(tight_bounds):
     """Test the tight_bounds argument with a features list."""
     df = pd.read_csv(stock_path)
-    features = infer_feature_attributes(df, tight_bounds=tight_bounds)
+    features = infer_feature_attributes(df, tight_bounds=tight_bounds, enable_suggestions=False)
 
-    all_tight_bounds = infer_feature_attributes(df, tight_bounds=features.get_names())
-    no_tight_bounds = infer_feature_attributes(df)
+    all_tight_bounds = infer_feature_attributes(df, tight_bounds=features.get_names(), enable_suggestions=False)
+    no_tight_bounds = infer_feature_attributes(df, enable_suggestions=False)
 
     for feature in features.keys():
         if "bounds" not in features[feature]:
@@ -637,27 +637,27 @@ def test_validate_dataframe():
     # (should not raise any exceptions!)
     # Iris dataset
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
     assert features.validate(df, raise_errors=True) is None
     # Integers dataset
     df = pd.read_csv(int_path)
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
     assert features.validate(df, raise_errors=True) is None
     # Example timeseries dataset
     df = pd.read_csv(ts_path)
-    features = infer_feature_attributes(df, time_feature_name="date")
+    features = infer_feature_attributes(df, time_feature_name="date", enable_suggestions=False)
     assert features.validate(df, raise_errors=True) is None
     # Mini stock data dataset
     df = pd.read_csv(stock_path)
-    features = infer_feature_attributes(df, time_feature_name="DATE")
+    features = infer_feature_attributes(df, time_feature_name="DATE", enable_suggestions=False)
     assert features.validate(df, raise_errors=True) is None
     # Also try this one with a non-ts infer
     df = pd.read_csv(stock_path)
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
     assert features.validate(df, raise_errors=True) is None
     # Should not raise any exceptions and return a "coerced" dataframe
     df = pd.read_csv(iris_path)
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
     df["sepal_length"] = df["sepal_length"].astype("int64")
     df = features.validate(df, coerce=True, raise_errors=True)
     assert df is not None
@@ -705,7 +705,7 @@ def test_validate_df_multiple_dtypes(ftype, data_type, decimal_places, bounds, d
         feature = "SYMBOL"
     # Infer the feature attributes like normal, but replace the attributes for the chosen feature
     # with our parameter attributes, which should also be considered valid.
-    attrs = infer_feature_attributes(df, time_feature_name="DATE")
+    attrs = infer_feature_attributes(df, time_feature_name="DATE", enable_suggestions=False)
     attrs[feature] = {
         "type": ftype,
         "data_type": data_type,
@@ -852,7 +852,7 @@ def test_validate_df_missing_features(extra_attrs, success):
     exempt from raising warnings that the feature is missing.
     """
     df = pd.read_csv(stock_path)
-    attrs = infer_feature_attributes(df, time_feature_name="DATE")
+    attrs = infer_feature_attributes(df, time_feature_name="DATE", enable_suggestions=False)
     # Add a would-be derived/computed feature
     attrs["to_be_computed"] = {"type": "continuous"}
     attrs["to_be_computed"].update(extra_attrs)
@@ -909,7 +909,7 @@ def test_unsupported_data(datetime_min_max, float_min_max, int_min_max):
             df.at[1, feature] = val_2
         expected_unsupported[feature] = unsupported
 
-    features = infer_feature_attributes(df, tight_bounds=["DATE", "CLOSE", "VOLUME"])
+    features = infer_feature_attributes(df, tight_bounds=["DATE", "CLOSE", "VOLUME"], enable_suggestions=False)
 
     for feature in features.keys():
         if expected_unsupported.get(feature, False):
@@ -938,7 +938,7 @@ def test_json_yaml_features(value, is_json, is_yaml):
     """Test that infer_feature_attributes correctly identifies JSON and YAML features."""
     df = pd.DataFrame({"a": [value]})
 
-    features = infer_feature_attributes(df)
+    features = infer_feature_attributes(df, enable_suggestions=False)
 
     if is_json:
         assert features["a"]["type"] == "continuous"
@@ -972,7 +972,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid, max_workers
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types, max_workers=max_workers)
+            features = infer_feature_attributes(data, types=types, max_workers=max_workers, enable_suggestions=False)
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]["type"] == expected_type
@@ -980,7 +980,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid, max_workers
                 assert "allow_null" in features[feature_name].get("bounds", {}).keys()
         else:
             with pytest.raises(ValueError):
-                infer_feature_attributes(data, types=types, max_workers=max_workers)
+                infer_feature_attributes(data, types=types, max_workers=max_workers, enable_suggestions=False)
 
 
 def test_preset_feature_types_with_multiprocessing():
@@ -990,7 +990,8 @@ def test_preset_feature_types_with_multiprocessing():
     continuous = ["CLOSE"]
     # Everything else is nominal, in this case.
     nominals = [f for f in df.columns if f not in continuous]
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2)
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=2,
+                                        enable_suggestions=False)
     assert features is not None
 
 
@@ -1004,10 +1005,12 @@ def test_feature_order():
     df = pd.read_csv(stock_path)
     continuous = ["CLOSE"]
     nominals = [f for f in df.columns if f not in continuous]
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=10)
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=10,
+                                        enable_suggestions=False)
     assert same_order(features.keys(), df.columns)
     # Try it without multiprocessing as well
-    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=0)
+    features = infer_feature_attributes(df, types={"nominal": nominals, "continuous": continuous}, max_workers=0,
+                                        enable_suggestions=False)
     assert same_order(features.keys(), df.columns)
 
 
@@ -1053,7 +1056,7 @@ def test_disk_archival():
         "a": [0, 1, 2, 3, 4, 5, 6, 7],
         "b": ["apple", "banana", "banana", "cherry", "apple", "apple", "cherry", "banana"]
     })
-    features = infer_feature_attributes(data, tight_bounds=["a"])
+    features = infer_feature_attributes(data, tight_bounds=["a"], enable_suggestions=False)
     assert features["a"]["type"] == "continuous"
     assert features["b"]["type"] == "nominal"
 
@@ -1117,7 +1120,7 @@ def test_observed_ordinal_values(series, ordinals, min_value, max_value):
     data = pd.DataFrame({"a": series})
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        features = infer_feature_attributes(data, ordinal_feature_values={"a": ordinals})
+        features = infer_feature_attributes(data, ordinal_feature_values={"a": ordinals}, enable_suggestions=False)
     assert features["a"]["bounds"]["observed_min"] == min_value
     assert features["a"]["bounds"]["observed_max"] == max_value
 
@@ -1155,16 +1158,20 @@ def test_default_time_zone():
     # No default time zone or time zone identifier in format string; warning should be raised
     with pytest.warns(match="features do not include a time zone and will default to UTC"):
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
-                                                                 "custom2": "%Y/%m/%d %H:%M"})
+                                                                 "custom2": "%Y/%m/%d %H:%M"},
+                                 enable_suggestions=False)
         # Also try with multiprocessing
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
-                                                                 "custom2": "%Y/%m/%d %H:%M"}, max_workers=2)
+                                                                 "custom2": "%Y/%m/%d %H:%M"}, max_workers=2,
+                                 enable_suggestions=False)
 
     # Using UTC offsets should also result in a warning
     with pytest.warns(match="The following features are using UTC offsets"):
-        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"})
+        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"},
+                                 enable_suggestions=False)
         # Also try with multiprocessing
-        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"}, max_workers=2)
+        infer_feature_attributes(data, datetime_feature_formats={"custom3": "%Y/%m/%d %H:%M %z"}, max_workers=2,
+                                 enable_suggestions=False)
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -1188,13 +1195,13 @@ def test_constrained_date_bounds():
     df = pd.DataFrame([["01"], ["02"]], columns=["date"])
     with pytest.warns(match="bounds could not be computed. This is likely due to a constrained date time format"):
         # Loose bounds may cause min bound to be > max bound if the date format is constrained
-        infer_feature_attributes(df, datetime_feature_formats={"date": "%m"})
+        infer_feature_attributes(df, datetime_feature_formats={"date": "%m"}, enable_suggestions=False)
 
 
 def test_nullable_integer_validation():
     """Test that IFA correctly validates data with nullable integers."""
     df = pd.DataFrame({"a": ["1", "2", "3", pd.NA, "4"]}, dtype="Int64")
-    attrs = infer_feature_attributes(df)
+    attrs = infer_feature_attributes(df, enable_suggestions=False)
     df = df.astype("float64")  # Force a coersion back to Int64
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -1206,7 +1213,7 @@ def test_memory_usage_warning():
     df = pd.DataFrame([["a" * 1024], ["b" * 512], ["c" * 256]], columns=["big"])
     # Test that a single violating feature raises a warning
     with pytest.warns(match="feature 'big' exceeds the configured threshold"):
-        infer_feature_attributes(df)
+        infer_feature_attributes(df, enable_suggestions=False)
     # Test that the warning disappears when the threshold is configured to be larger
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -1216,7 +1223,7 @@ def test_memory_usage_warning():
     with pytest.warns(match="2 features have an average memory size exceeding the "
                       "configured threshold of 512 bytes. The feature with the largest "
                       "memory footprint is 'bigger'"):
-        infer_feature_attributes(df)
+        infer_feature_attributes(df, enable_suggestions=False)
 
 
 @pytest.mark.skipif(nypd_arrest_df is None, reason="Cannot load Parquet files")
@@ -1224,7 +1231,8 @@ def test_ambiguous_datetime_format():
     """Test that a non-ISO8601 datetime feature results in a warning."""
     assert nypd_arrest_df is not None
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
-        infer_feature_attributes(nypd_arrest_df)  # NYPD arrest data includes a non-ISO8601 date string
+        infer_feature_attributes(nypd_arrest_df,
+                                 enable_suggestions=False)  # NYPD arrest data includes a non-ISO8601 date string
 
 
 def test_no_warnings_datetime_feature_formats():
@@ -1239,7 +1247,7 @@ def test_no_warnings_datetime_feature_formats():
 def test_datetime_empty_time_values():
     """Test that datetimes with an empty time value still are determined datetime features with the correct format."""
     df = pd.DataFrame({"a": ["2025-08-22T00:00:00"], "b": ["2025-08-22 00:00:00"]})
-    features = infer_feature_attributes(df, default_time_zone="UTC")
+    features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
     assert features["a"]["date_time_format"] == "%Y-%m-%dT%H:%M:%S"
     assert features["b"]["date_time_format"] == "%Y-%m-%d %H:%M:%S"
 
@@ -1252,7 +1260,7 @@ def test_empty_string_first_non_nulls():
         infer_feature_attributes(df, enable_suggestions=False)
     df = pd.DataFrame({"a": ["", "ahoy", "howdy"], "b": ["\n", "8/26/2025", "8/3/1999"]})
     with pytest.warns(UserWarning, match="these features will be treated as nominal strings"):
-        infer_feature_attributes(df)
+        infer_feature_attributes(df, enable_suggestions=False)
 
 
 def test_infer_tokenizable_string():
@@ -1276,7 +1284,7 @@ def test_infer_tokenizable_string():
         ],
     }
     df = pd.DataFrame(data)
-    feature_attributes = infer_feature_attributes(df, types={"continuous": ["review"]})
+    feature_attributes = infer_feature_attributes(df, types={"continuous": ["review"]}, enable_suggestions=False)
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
@@ -1290,22 +1298,22 @@ def test_boolean_detection():
     df = pd.DataFrame()
     # Python bool
     df["boolean"] = [True, False] * 100
-    feature_attributes = infer_feature_attributes(df)
+    feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
     assert feature_attributes["boolean"]["data_type"] == "boolean"
 
     # True/False string
     df["boolean"] = ["True", "False"] * 100
-    feature_attributes = infer_feature_attributes(df)
+    feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
     assert feature_attributes["boolean"]["data_type"] == "boolean"
 
     # Possible boolean but should be inferred as string
     df["boolean"] = ["t", "f"] * 100
-    feature_attributes = infer_feature_attributes(df)
+    feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
     assert feature_attributes["boolean"]["data_type"] == "string"
 
     # Mix of booleans and non-booleans
     df["boolean"] = ["true", "false", "maybe", "another_thing"] * 50
-    feature_attributes = infer_feature_attributes(df)
+    feature_attributes = infer_feature_attributes(df, enable_suggestions=False)
     assert feature_attributes["boolean"]["data_type"] == "string"
 
 
@@ -1323,9 +1331,9 @@ def test_dependent_features_uniques_warning():
         warnings.simplefilter("error")
         infer_feature_attributes(df, dependent_features={"d": ["b", "c"]}, enable_suggestions=False)
     with pytest.warns(UserWarning, match="- a\n"):
-        infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]})
+        infer_feature_attributes(df, dependent_features={"d": ["b", "c", "a"]}, enable_suggestions=False)
     with pytest.warns(UserWarning, match="- a\n"):
-        infer_feature_attributes(df, dependent_features={"a": ["b", "c", "d"]})
+        infer_feature_attributes(df, dependent_features={"a": ["b", "c", "d"]}, enable_suggestions=False)
 
 
 def test_set_data():
@@ -1487,7 +1495,7 @@ def test_preserve_rare_values_reweighted(max_workers: int, caps: list[str] | dic
             warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=max_distilled_cases, **_thresholds(30),
                                             preserve_rare_values=["a"], preserve_rare_values_caps=caps,
-                                            max_workers=max_workers)
+                                            max_workers=max_workers, enable_suggestions=False)
     if expected_kept == 0:
         assert "value_weight_multipliers" not in features["a"]
         return
@@ -1513,13 +1521,17 @@ def test_preserve_rare_values_caps_validation():
     df = _rare_values_df()
     with pytest.raises(ValueError,
                        match="`preserve_rare_values_caps` names features that are not in the data: `missing`"):
-        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps=["missing"])
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps=["missing"],
+                                 enable_suggestions=False)
     with pytest.raises(ValueError, match="must be greater than 0 and at most 1"):
-        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps={"a": 0})
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps={"a": 0},
+                                 enable_suggestions=False)
     with pytest.raises(ValueError, match="must be greater than 0 and at most 1"):
-        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps={"a": 1.5})
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps={"a": 1.5},
+                                 enable_suggestions=False)
     with pytest.raises(TypeError, match="list of feature names or a mapping"):
-        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps="a")
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values_caps="a",
+                                 enable_suggestions=False)
 
 
 def _two_rare_features_df() -> pd.DataFrame:
@@ -1538,7 +1550,8 @@ def test_preserve_rare_values_feature_name(max_workers: int) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["b"],
-                                            max_workers=max_workers, types={"n": "continuous"})
+                                            max_workers=max_workers, types={"n": "continuous"},
+                                            enable_suggestions=False)
     assert "value_weight_multipliers" not in features["a"]
     assert "value_weight_multipliers" not in features["off"]
     assert set(_multipliers(features["b"])) == {"rare", "common"}
@@ -1551,7 +1564,7 @@ def test_preserve_rare_values_feature_names():
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["a", "b"],
-                                            types={"n": "continuous"})
+                                            types={"n": "continuous"}, enable_suggestions=False)
     assert {f for f, attrs in features.items() if "value_weight_multipliers" in attrs} == {"a", "b"}
 
 
@@ -1559,18 +1572,20 @@ def test_preserve_rare_values_feature_name_errors():
     """Test the errors for a `preserve_rare_values` naming an unusable feature, or given as a bare string."""
     df = _two_rare_features_df()
     with pytest.raises(ValueError, match="not in the data"):
-        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["missing"])
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["missing"],
+                                 enable_suggestions=False)
     with pytest.raises(ValueError, match="inferred to be continuous; rare values can only be set for nominal"):
         infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["n"],
-                                 types={"n": "continuous"})
+                                 types={"n": "continuous"}, enable_suggestions=False)
     with pytest.raises(ValueError, match="must also provide `max_distilled_cases`"):
-        infer_feature_attributes(df, preserve_rare_values=["a"])
+        infer_feature_attributes(df, preserve_rare_values=["a"], enable_suggestions=False)
     # A feature name is passed in a list, never as a bare string, so a string is only ever "all" or "off"
     with pytest.raises(ValueError, match='got the string "a"'):
-        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="a")
+        infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="a", enable_suggestions=False)
     with pytest.raises(TypeError, match="got int"):
         infer_feature_attributes(df, max_distilled_cases=1_000,
-                                 preserve_rare_values=3)  # pyright: ignore[reportArgumentType]
+                                 preserve_rare_values=3,
+                                 enable_suggestions=False)  # pyright: ignore[reportArgumentType]
 
 
 def test_preserve_rare_values_off():
@@ -1656,7 +1671,7 @@ def test_preserve_rare_values_given_multipliers():
     fitting = [{"value": f"rare{i}", "multiplier": 10.0} for i in range(5)]
     # Without `max_distilled_cases`, the floor comes from the default target, and the user is told so
     with pytest.warns(UserWarning, match="assumed distillation target of 50,000 cases"):
-        features = infer_feature_attributes(df, preserve_rare_values={"a": fitting})
+        features = infer_feature_attributes(df, preserve_rare_values={"a": fitting}, enable_suggestions=False)
     multipliers = _multipliers(features["a"])
     assert all(multipliers[f"rare{i}"] == 10.0 for i in range(5))
     # The small values keep a multiplier of 1 and are not listed
@@ -1669,7 +1684,7 @@ def test_preserve_rare_values_given_multipliers():
     # together to use the rest of its weight
     too_high = [{"value": f"rare{i}", "multiplier": 200.0} for i in range(5)]
     with pytest.warns(UserWarning, match="each multiplier's increase over 1 was scaled by"):
-        features = infer_feature_attributes(df, preserve_rare_values={"a": too_high})
+        features = infer_feature_attributes(df, preserve_rare_values={"a": too_high}, enable_suggestions=False)
     multipliers = _multipliers(features["a"])
     scale = (98_980 - 6) / (5 * 199 * 200)
     assert all(multipliers[f"rare{i}"] == pytest.approx(1 + 199 * scale) for i in range(5))
@@ -1678,31 +1693,34 @@ def test_preserve_rare_values_given_multipliers():
     # A cap limits what the common value gives up
     with pytest.warns(UserWarning, match="scaled by"):
         features = infer_feature_attributes(df, preserve_rare_values={"a": too_high},
-                                            preserve_rare_values_caps={"a": 0.8})
+                                            preserve_rare_values_caps={"a": 0.8}, enable_suggestions=False)
     assert _multiplier(features["a"], "common") == pytest.approx(0.2)
 
     # With `max_distilled_cases`, nothing is assumed and nothing is reported
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         features = infer_feature_attributes(df, max_distilled_cases=50_000,
-                                            preserve_rare_values={"a": fitting})
+                                            preserve_rare_values={"a": fitting}, enable_suggestions=False)
     assert _multipliers(features["a"])["rare0"] == 10.0
 
     # A full config is used as-is, without computing anything, so nothing is assumed either
     full = {"value_weight_multipliers": [*too_high, {"value": "common", "multiplier": 0.25}]}
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        features = infer_feature_attributes(df, preserve_rare_values={"a": full})
+        features = infer_feature_attributes(df, preserve_rare_values={"a": full}, enable_suggestions=False)
     assert _prv(features["a"]) == full["value_weight_multipliers"]
     # A dict is only accepted in that form
     with pytest.raises(ValueError, match="got a dict with the keys \\['protected_values_multipliers'\\]"):
-        infer_feature_attributes(df, preserve_rare_values={"a": {"protected_values_multipliers": fitting}})
+        infer_feature_attributes(df, preserve_rare_values={"a": {"protected_values_multipliers": fitting}},
+                                 enable_suggestions=False)
 
     # Multipliers must be at least 1, and values must exist
     with pytest.raises(ValueError, match="must be a finite number of at least 1"):
-        infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "rare0", "multiplier": 0.5}]})
+        infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "rare0", "multiplier": 0.5}]},
+                                 enable_suggestions=False)
     with pytest.raises(ValueError, match="not found in column"):
-        infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "missing", "multiplier": 2}]})
+        infer_feature_attributes(df, preserve_rare_values={"a": [{"value": "missing", "multiplier": 2}]},
+                                 enable_suggestions=False)
 
 
 def test_preserve_rare_values_deficit_exactly_exhausts_budget():
@@ -1783,10 +1801,10 @@ def test_preserve_rare_values_unknown_feature(max_workers: int) -> None:
     df = _rare_values_df()
     with pytest.raises(ValueError, match="`preserve_rare_values` names features that are not in the data: `typo`"):
         infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"typo": ["rare0"]},
-                                 max_workers=max_workers)
+                                 max_workers=max_workers, enable_suggestions=False)
     with pytest.raises(ValueError, match="`preserve_rare_values` names features that are not in the data: `typo`"):
         infer_feature_attributes(df, preserve_rare_values={"typo": [{"value": "rare0", "multiplier": 2}]},
-                                 max_workers=max_workers)
+                                 max_workers=max_workers, enable_suggestions=False)
 
 
 @pytest.mark.parametrize("max_workers", [0, 2])
@@ -1838,7 +1856,7 @@ def test_preserve_rare_values_mixed_forms(max_workers: int) -> None:
                                                 "b": [{"value": "rare", "multiplier": 3.0}],
                                                 "c": {"value_weight_multipliers": [
                                                     {"value": "rare", "multiplier": 2.5}]},
-                                            })
+                                            }, enable_suggestions=False)
     # `a`: multipliers computed for the named values; `b`: the given multiplier, funded; `c`: as given
     assert {v for v, m in _multipliers(features["a"]).items() if m > 1} == {"rare0", "rare1"}
     assert _multiplier(features["b"], "rare") == 3.0
@@ -1849,13 +1867,15 @@ def test_preserve_rare_values_mixed_forms(max_workers: int) -> None:
     # Each check happens once, before any feature is processed
     with pytest.raises(ValueError, match="mixes plain values with dicts"):
         infer_feature_attributes(df, max_distilled_cases=1_000, max_workers=max_workers,
-                                 preserve_rare_values={"a": ["rare0", {"value": "rare1", "multiplier": 2}]})
+                                 preserve_rare_values={"a": ["rare0", {"value": "rare1", "multiplier": 2}]},
+                                 enable_suggestions=False)
     with pytest.raises(ValueError, match="pairs value `rare0` with no multiplier"):
         infer_feature_attributes(df, max_distilled_cases=1_000, max_workers=max_workers,
-                                 preserve_rare_values={"a": [{"value": "rare0"}]})
+                                 preserve_rare_values={"a": [{"value": "rare0"}]}, enable_suggestions=False)
     with pytest.raises(TypeError, match="got str"):
         infer_feature_attributes(df, max_distilled_cases=1_000, max_workers=max_workers,
-                                 preserve_rare_values={"a": "rare0"})  # pyright: ignore[reportArgumentType]
+                                 preserve_rare_values={"a": "rare0"},
+                                 enable_suggestions=False)  # pyright: ignore[reportArgumentType]
 
 
 def test_preserve_rare_values_nullable_numeric():
@@ -1863,14 +1883,14 @@ def test_preserve_rare_values_nullable_numeric():
     values = [1.0] * 9_800 + [2.0] * 100 + [None] * 50 + [np.nan] * 50
     df = pd.DataFrame({"x": values, "i": range(len(values))})
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"x": [None, 2.0]},
-                                        types={"x": "nominal"}, **_thresholds(30))
+                                        types={"x": "nominal"}, **_thresholds(30), enable_suggestions=False)
     multipliers = _multipliers(features["x"])
     assert set(multipliers) == {None, 2.0, 1.0}
     target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
     assert multipliers[None] == pytest.approx(30 * len(df) / target / 100)
     with pytest.warns(UserWarning, match="assumed distillation target"):
         features = infer_feature_attributes(df, preserve_rare_values={"x": [{"value": None, "multiplier": 2}]},
-                                            types={"x": "nominal"}, **_thresholds(30))
+                                            types={"x": "nominal"}, **_thresholds(30), enable_suggestions=False)
     multipliers = _multipliers(features["x"])
     assert multipliers[None] == 2.0
     # The value 2.0 keeps the threshold on its own at the default target, so it funds the null alongside 1.0
@@ -1883,12 +1903,12 @@ def test_preserve_rare_values_keeps_integer_values():
     values = [1] * 9_900 + [7] * 100
     df = pd.DataFrame({"k": values, "i": range(len(values))})
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"k": [7]},
-                                        types={"k": "nominal"}, **_thresholds(30))
+                                        types={"k": "nominal"}, **_thresholds(30), enable_suggestions=False)
     assert set(_multipliers(features["k"])) == {7, 1}
     assert all(type(entry["value"]) is int for entry in _prv(features["k"]))
     # Candidates found in the data come back as plain Python integers too
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["k"],
-                                        types={"k": "nominal"}, **_thresholds(30))
+                                        types={"k": "nominal"}, **_thresholds(30), enable_suggestions=False)
     assert set(_multipliers(features["k"])) == {7, 1}
     assert all(type(entry["value"]) is int for entry in _prv(features["k"]))
 
@@ -1898,7 +1918,7 @@ def test_preserve_rare_values_mixed_nulls_are_one_value():
     values = ["common"] * 9_880 + [None] * 40 + [np.nan] * 40 + [pd.NA] * 40
     df = pd.DataFrame({"a": pd.Series(values, dtype=object), "i": range(len(values))})
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values="all",
-                                        **_thresholds(30))
+                                        **_thresholds(30), enable_suggestions=False)
     multipliers = _multipliers(features["a"])
     assert set(multipliers) == {None, "common"}
     target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
@@ -1917,7 +1937,8 @@ def test_preserve_rare_values_min_cases_and_distilled_min_cases():
     df = pd.DataFrame({"a": values, "i": range(len(values))})
     target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)
     assert target == 625
-    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["a"])
+    features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["a"],
+                                        enable_suggestions=False)
     multipliers = _multipliers(features["a"])
     assert set(multipliers) == {"rare", "common", "mid"}
     assert multipliers["rare"] == pytest.approx(48 / 30)
@@ -1927,12 +1948,12 @@ def test_preserve_rare_values_min_cases_and_distilled_min_cases():
     assert _total_weight(df, features["a"]) == pytest.approx(len(df))
     # Raising only the post-distillation threshold raises the floor to 6 * 16 = 96, which `rare` is lifted to
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["a"],
-                                        preserve_rare_values_distilled_min_cases=6)
+                                        preserve_rare_values_distilled_min_cases=6, enable_suggestions=False)
     assert _multiplier(features["a"], "rare") == pytest.approx(96 / 30)
     # Raising only the pre-distillation threshold above 30 leaves `rare` too small to qualify
     with pytest.warns(UserWarning, match="No rare value candidates were found in `a`"):
         features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values=["a"],
-                                            preserve_rare_values_min_cases=31)
+                                            preserve_rare_values_min_cases=31, enable_suggestions=False)
     assert "value_weight_multipliers" not in features["a"]
 
 
@@ -1940,7 +1961,7 @@ def test_preserve_rare_values_threshold_validation():
     """Test the deprecated `significance_threshold` and the check that the thresholds are consistent."""
     values = ["common"] * 9_860 + ["mid"] * 100 + ["rare"] * 30 + ["tiny"] * 10
     df = pd.DataFrame({"a": values, "i": range(len(values))})
-    kwargs = {"max_distilled_cases": 1_000, "preserve_rare_values": ["a"]}
+    kwargs = {"max_distilled_cases": 1_000, "preserve_rare_values": ["a"], "enable_suggestions": False}
     # `significance_threshold` sets only the pre-distillation threshold
     with pytest.warns(DeprecationWarning, match="`significance_threshold` is deprecated; use "
                                                 "`preserve_rare_values_min_cases`"):
@@ -1971,12 +1992,12 @@ def test_preserve_rare_values_limit_target_counts_future_donors():
     rare_map = {"a": [f"rare{i}" for i in range(7)]}
     with pytest.warns(UserWarning, match="Preserved 0 of the 7 rare values of feature `a`.*at least 280,"):
         features = infer_feature_attributes(df, max_distilled_cases=100, **_thresholds(30),
-                                            preserve_rare_values=rare_map)
+                                            preserve_rare_values=rare_map, enable_suggestions=False)
     assert "value_weight_multipliers" not in features["a"]
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         refit = infer_feature_attributes(df, max_distilled_cases=280, **_thresholds(30),
-                                         preserve_rare_values=rare_map)
+                                         preserve_rare_values=rare_map, enable_suggestions=False)
     assert len({v for v, m in _multipliers(refit["a"]).items() if m > 1}) == 7
 
 
@@ -1989,16 +2010,16 @@ def test_preserve_rare_values_no_donor_is_reported():
     rare_values = [f"rare{i}" for i in range(10)]
     with pytest.warns(UserWarning, match="Preserved 0 of the 10 rare values of feature `a`.*at least 500,"):
         features = infer_feature_attributes(df, max_distilled_cases=100, **_thresholds(30),
-                                            preserve_rare_values={"a": rare_values})
+                                            preserve_rare_values={"a": rare_values}, enable_suggestions=False)
     assert "value_weight_multipliers" not in features["a"]
     config = {"a": [{"value": value, "multiplier": 2.0} for value in rare_values]}
     with pytest.warns(UserWarning, match="Preserved 0 of the 10 rare values of feature `a`"):
         features = infer_feature_attributes(df, max_distilled_cases=100, **_thresholds(30),
-                                            preserve_rare_values=config)
+                                            preserve_rare_values=config, enable_suggestions=False)
     assert "value_weight_multipliers" not in features["a"]
     with pytest.warns(UserWarning, match="No value weight multipliers were written for `a`"):
         refit = infer_feature_attributes(df, max_distilled_cases=500, **_thresholds(30),
-                                         preserve_rare_values={"a": rare_values})
+                                         preserve_rare_values={"a": rare_values}, enable_suggestions=False)
     assert "value_weight_multipliers" not in refit["a"]
 
 
@@ -2050,7 +2071,8 @@ def test_preserve_rare_values_duplicate_values():
     with pytest.raises(ValueError, match="gives value `rare` two different multipliers, 3 and 4"):
         infer_feature_attributes(df, max_distilled_cases=200, **_thresholds(30),
                                  preserve_rare_values={"a": [{"value": "rare", "multiplier": 3.0},
-                                                             {"value": "rare", "multiplier": 4.0}]})
+                                                             {"value": "rare", "multiplier": 4.0}]},
+                                 enable_suggestions=False)
 
 
 def test_preserve_rare_values_multiplier_of_one_is_omitted():
@@ -2120,7 +2142,7 @@ def test_preserve_rare_values_huge_multiplier_conserves_weight(max_workers: int)
     with pytest.warns(UserWarning, match="scaled by"):
         features = infer_feature_attributes(df, max_distilled_cases=100, **_thresholds(30),
                                             preserve_rare_values={"a": [{"value": "rare", "multiplier": 1e308}]},
-                                            max_workers=max_workers)
+                                            max_workers=max_workers, enable_suggestions=False)
     multipliers = _multipliers(features["a"])
     assert multipliers["rare"] == pytest.approx(1 + (900 - floor) / 100)
     assert multipliers["common"] == pytest.approx(floor / 900)
@@ -2133,15 +2155,16 @@ def test_preserve_rare_values_multiplier_must_be_finite(multiplier) -> None:
     df = pd.DataFrame({"a": ["common"] * 900 + ["rare"] * 60 + ["small"] * 10})
     with pytest.raises(ValueError, match="must be a finite number of at least 1"):
         infer_feature_attributes(df, max_distilled_cases=200, **_thresholds(30),
-                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": multiplier}]})
+                                 preserve_rare_values={"a": [{"value": "rare", "multiplier": multiplier}]},
+                                 enable_suggestions=False)
     with pytest.raises(ValueError, match="must be a finite number of at least 0"):
         infer_feature_attributes(df, max_distilled_cases=200, **_thresholds(30),
                                  preserve_rare_values={"a": {"value_weight_multipliers": [
-                                     {"value": "rare", "multiplier": multiplier}]}})
+                                     {"value": "rare", "multiplier": multiplier}]}}, enable_suggestions=False)
     with pytest.raises(ValueError, match="must be positive; got 0"):
         infer_feature_attributes(df, max_distilled_cases=200, **_thresholds(30),
                                  preserve_rare_values={"a": {"value_weight_multipliers": [
-                                     {"value": "rare", "multiplier": 0}]}})
+                                     {"value": "rare", "multiplier": 0}]}}, enable_suggestions=False)
 
 
 def test_preserve_rare_values_all_cases_protected():
@@ -2149,11 +2172,12 @@ def test_preserve_rare_values_all_cases_protected():
     df = pd.DataFrame({"a": ["x"] * 50 + ["y"] * 50, "i": range(100)})
     with pytest.warns(UserWarning, match="Preserved 0 of the 2 rare values of feature `a`"):
         features = infer_feature_attributes(df, max_distilled_cases=10, preserve_rare_values={"a": ["x", "y"]},
-                                            **_thresholds(30))
+                                            **_thresholds(30), enable_suggestions=False)
     assert "value_weight_multipliers" not in features["a"]
     all_values = [{"value": "x", "multiplier": 2}, {"value": "y", "multiplier": 2}]
     with pytest.warns(UserWarning, match="Preserved 0 of the 2 rare values of feature `a`"):
-        features = infer_feature_attributes(df, preserve_rare_values={"a": all_values}, **_thresholds(30))
+        features = infer_feature_attributes(df, preserve_rare_values={"a": all_values}, **_thresholds(30),
+                                            enable_suggestions=False)
     assert "value_weight_multipliers" not in features["a"]
 
 
@@ -2163,13 +2187,13 @@ def test_preserve_rare_values_null_values():
     df = pd.DataFrame({"a": values, "i": range(len(values))})
     # Too few nulls to be significant: they keep a multiplier of 1 and are not listed
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"a": ["rare"]},
-                                        **_thresholds(30))
+                                        **_thresholds(30), enable_suggestions=False)
     multipliers = _multipliers(features["a"])
     assert set(multipliers) == {"rare", "common"}
     # Protected: listed once, as None, with the count of every null form; `rare` sits below the floor
     # without being named, so it keeps its weight rather than being lifted, and is not listed
     features = infer_feature_attributes(df, max_distilled_cases=1_000, preserve_rare_values={"a": [None]},
-                                        **_thresholds(30))
+                                        **_thresholds(30), enable_suggestions=False)
     multipliers = _multipliers(features["a"])
     assert set(multipliers) == {None, "common"}
     target, _ = get_optimized_partition_size(row_count=len(df), max_partition_size=1_000)

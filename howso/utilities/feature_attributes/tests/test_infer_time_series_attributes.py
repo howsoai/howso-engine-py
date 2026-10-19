@@ -75,7 +75,8 @@ def test_infer_features_attributes_single_ID():
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format},
-        include_sample=True
+        include_sample=True,
+        enable_suggestions=False
     )
 
     for feature, attributes in features.items():
@@ -108,7 +109,8 @@ def test_infer_features_attributes_multiple_ID():
         df,
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
-        datetime_feature_formats={time_feature_name: time_format}
+        datetime_feature_formats={time_feature_name: time_format},
+        enable_suggestions=False
     )
 
     for feature, attributes in features.items():
@@ -140,7 +142,8 @@ def test_set_rate_delta_boundaries():
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format},
         rate_boundaries=rate_boundaries,
-        delta_boundaries=delta_boundaries
+        delta_boundaries=delta_boundaries,
+        enable_suggestions=False
     )
 
     # Make sure that order 0 was overwritten for rate/delta min & max
@@ -167,6 +170,7 @@ def test_set_rate_delta_boundaries():
             datetime_feature_formats={time_feature_name: time_format},
             rate_boundaries=rate_boundaries,
             delta_boundaries=delta_boundaries,
+            enable_suggestions=False
         )
         assert "rate_min" not in features["date"]["time_series"]
         assert "rate_max" not in features["date"]["time_series"]
@@ -198,6 +202,7 @@ def test_time_feature_is_universal(universal_value, expected):
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format},
         time_feature_is_universal=universal_value,
+        enable_suggestions=False
     )
 
     assert features[time_feature_name]["time_series"].get("universal") == expected
@@ -221,7 +226,8 @@ def test_infer_features_attributes_tight_bounds_dependent_functionality():
         time_feature_name=time_feature_name,
         id_feature_name=id_feature_name,
         datetime_feature_formats={time_feature_name: time_format},
-        include_sample=True
+        include_sample=True,
+        enable_suggestions=False
     )
 
     f3_max = df["f3"].max()
@@ -244,7 +250,8 @@ def test_invalid_time_feature_format():
             df,
             time_feature_name=time_feature_name,
             id_feature_name="ID",
-            datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"}  # invalid format
+            datetime_feature_formats={time_feature_name: "%Y-%m-%dT%H"},  # invalid format
+            enable_suggestions=False
         )
 
 
@@ -263,7 +270,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if is_valid:
-            features = infer_feature_attributes(data, types=types, time_feature_name="a")
+            features = infer_feature_attributes(data, types=types, time_feature_name="a", enable_suggestions=False)
             for feature_name, expected_type in expected_types.items():
                 # Make sure it is the correct type
                 assert features[feature_name]["type"] == expected_type
@@ -271,7 +278,7 @@ def test_preset_feature_types(data, types, expected_types, is_valid):
                 assert "allow_null" in features[feature_name].get("bounds", {}).keys()
         else:
             with pytest.raises(ValueError):
-                infer_feature_attributes(data, types=types)
+                infer_feature_attributes(data, types=types, enable_suggestions=False)
 
 
 def test_lags():
@@ -280,12 +287,14 @@ def test_lags():
 
     # The below should not raise any exceptions
     lags = {"date": 0}
-    fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=lags)
+    fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=lags,
+                                  enable_suggestions=False)
     Trainee(features=fa)
 
     # Ensure that an invalid lags value raises a helpful TypeError
     with pytest.raises(TypeError):
-        fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": "0"})
+        fa = infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags={"date": "0"},
+                                      enable_suggestions=False)
 
 
 def test_lags_num_lags_confusion():
@@ -294,15 +303,17 @@ def test_lags_num_lags_confusion():
 
     # `lags` takes a list or dict; an int is almost certainly a `num_lags` value.
     with pytest.raises(TypeError, match=r"`lags` must be a list or dict.*Did you mean `num_lags`\?"):
-        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=3)
+        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags=3, enable_suggestions=False)
 
     # ...and the mirror case.
     with pytest.raises(TypeError, match=r"`num_lags` must be an int or dict.*Did you mean `lags`\?"):
-        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", num_lags=[1, 3, 5])
+        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", num_lags=[1, 3, 5],
+                                 enable_suggestions=False)
 
     # Other unsupported types still raise, just without the cross-reference.
     with pytest.raises(TypeError, match=r"`lags` must be a list or dict"):
-        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags="3")
+        infer_feature_attributes(df, time_feature_name="date", id_feature_name="ID", lags="3",
+                                 enable_suggestions=False)
 
 
 def test_nominal_vs_continuous_detection():
@@ -318,12 +329,12 @@ def test_nominal_vs_continuous_detection():
     np.random.shuffle(series)
     df["f5"] = series
     # Ensure that feature types were properly inferred
-    features = infer_feature_attributes(df, id_feature_name="ID", time_feature_name="date")
+    features = infer_feature_attributes(df, id_feature_name="ID", time_feature_name="date", enable_suggestions=False)
     assert features["f4"]["type"] == "continuous"
     assert features["f5"]["type"] == "nominal"
     # Ensure that pre-setting feature types overrides this logic
     features = infer_feature_attributes(df, id_feature_name="ID", time_feature_name="date",
-                                        types={"f4": "nominal", "f5": "continuous"})
+                                        types={"f4": "nominal", "f5": "continuous"}, enable_suggestions=False)
     assert features["f5"]["type"] == "continuous"
     assert features["f4"]["type"] == "nominal"
 
@@ -348,7 +359,8 @@ def test_semi_structured_features(data_type: str, value: list[str]):
         df,
         time_feature_name="turn",
         id_feature_name="class",
-        num_lags=3
+        num_lags=3,
+        enable_suggestions=False
     )
     assert features["inventory"]["type"] == "continuous"
     assert features["inventory"]["data_type"] == data_type
@@ -366,6 +378,7 @@ def test_time_series_features_pandas():
         id_feature_name="ID",
         time_feature_name="date",
         datetime_feature_formats={"date": "%Y%m%d"},
+        enable_suggestions=False
     )
     pprint(pprint(features))
 
@@ -394,6 +407,7 @@ def test_time_series_features_pandas_native_date():
         df,
         id_feature_name = "ID",
         time_feature_name="date",
+        enable_suggestions=False
     )
     pprint(pprint(features))
 
@@ -418,7 +432,8 @@ def test_missing_time():
          "id": [1, 1, 1],
          "value": [1, 2, 3]}
     )
-    features = infer_feature_attributes(df, time_feature_name="time", id_feature_name="id", default_time_zone="UTC")
+    features = infer_feature_attributes(df, time_feature_name="time", id_feature_name="id", default_time_zone="UTC",
+                                        enable_suggestions=False)
     assert features is not None
 
 def test_nominals_are_ignored_in_ifa_for_ts():
@@ -455,6 +470,7 @@ def test_nominals_are_ignored_in_ifa_for_ts():
         id_feature_name = "SERIES",
         time_feature_name="DATE",
         default_time_zone="UTC",
+        enable_suggestions=False
     )
 
     # Verify that the semi-structured JSON continuous was set to continuous.
@@ -490,6 +506,7 @@ def test_nominal_id_feature():
         df,
         id_feature_name=id_feature_name,
         default_time_zone="UTC",
+        enable_suggestions=False
     )
     assert "id_feature" in features[id_feature_name]
     features.validate(df, raise_errors=True)
