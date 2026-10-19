@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --no-index --output-file=requirements-3.13-dev.txt --pip-args=None
 #
-amalgam-lang==36.0.0
+amalgam-lang==36.0.1
     # via howso-engine (pyproject.toml)
 astroid==4.3.4
     # via pylint
@@ -12,7 +12,7 @@ build==1.6.1
     # via
     #   nab-project
     #   pip-tools
-certifi==2026.7.22
+certifi==2026.10.18
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -70,28 +70,28 @@ mongomock==4.3.0
     # via howso-engine (pyproject.toml)
 mypy-extensions==1.1.0
     # via isort
-nab==0.0.19
+nab==0.0.22
     # via pipdeptree
-nab-index==0.0.19
+nab-index==0.0.22
     # via
     #   nab
     #   nab-project
     #   pipdeptree
-nab-markersets==0.0.19
+nab-markersets==0.0.22
     # via
     #   nab
     #   nab-project
     #   nab-provider
-nab-project==0.0.19
+nab-project==0.0.22
     # via
     #   nab
     #   pipdeptree
-nab-provider==0.0.19
+nab-provider==0.0.22
     # via
     #   nab
     #   nab-index
     #   nab-project
-nab-resolver==0.0.19
+nab-resolver==0.0.22
     # via
     #   nab
     #   nab-project
@@ -117,11 +117,11 @@ pandas==2.3.3
     # via howso-engine (pyproject.toml)
 pip-tools==7.6.2
     # via howso-engine (pyproject.toml)
-pipdeptree==4.2.7
+pipdeptree==4.2.9
     # via howso-engine (pyproject.toml)
-platformdirs==4.13.0
+platformdirs==4.13.5
     # via pylint
-pluggy==1.6.0
+pluggy==1.7.0
     # via
     #   pytest
     #   pytest-cov
@@ -199,7 +199,7 @@ tomli==2.5.0
     #   nab-project
 tomli-w==1.2.0
     # via nab-project
-tomlkit==0.15.1
+tomlkit==0.15.2
     # via pylint
 tqdm==4.70.1
     # via sacremoses
