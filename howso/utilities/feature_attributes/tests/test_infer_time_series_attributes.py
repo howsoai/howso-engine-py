@@ -598,8 +598,9 @@ def test_preserve_rare_values_time_series():
                 "ID": f"s{sid}",
                 "date": float(t),
                 "value": float(rng.normal(100.0, 10.0)),
-                # "rare" is significant on its own (count >= significance_threshold) but
-                # would drop below it after distillation, making it a rare-value candidate.
+                # "rare" is significant on its own (count >= preserve_rare_values_min_cases) but
+                # would drop below preserve_rare_values_distilled_min_cases after distillation,
+                # making it a rare-value candidate.
                 "cat": rng.choice(["a", "b", "c", "rare"], p=[0.4, 0.3, 0.27, 0.03]),
             })
     df = pd.DataFrame(rows)
@@ -611,7 +612,8 @@ def test_preserve_rare_values_time_series():
         id_feature_name="ID",
         max_distilled_cases=500,
         preserve_rare_values=["cat"],
-        significance_threshold=25,
+        preserve_rare_values_min_cases=25,
+        preserve_rare_values_distilled_min_cases=25,
         enable_suggestions=False,
     )
     assert "value_weight_multipliers" in features["cat"]

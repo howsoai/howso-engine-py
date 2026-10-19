@@ -18,7 +18,8 @@ import psutil
 from howso.utilities.feature_attributes.abstract_data import InferFeatureAttributesAbstractData
 from howso.utilities.feature_attributes.base import (
     InferFeatureAttributesBase,
-    SIGNIFICANT_THRESHOLD_DEFAULT,
+    PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
+    PRESERVE_RARE_VALUES_MIN_CASES_DEFAULT,
     SingleTableFeatureAttributes,
 )
 from howso.utilities.feature_attributes.pandas import InferFeatureAttributesDataFrame
@@ -386,8 +387,9 @@ class InferFeatureAttributesTimeSeries(ABC):
         ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
         preserve_rare_values: t.Optional[PreserveRareValues] = None,
         preserve_rare_values_caps: t.Optional[PreserveRareValuesCaps] = None,
+        preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
+        preserve_rare_values_min_cases: int = PRESERVE_RARE_VALUES_MIN_CASES_DEFAULT,
         rate_boundaries: t.Optional[dict] = None,
-        significance_threshold: int = SIGNIFICANT_THRESHOLD_DEFAULT,
         time_invariant_features: t.Optional[Iterable[str]] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
         time_feature_is_universal: t.Optional[bool] = None,
@@ -613,14 +615,16 @@ class InferFeatureAttributesTimeSeries(ABC):
             A dict maps each feature name to one of three forms:
 
             - A list of values to protect. Each is weighted to keep approximately
-            `significance_threshold` cases after distillation, funded by the feature's other values.
+            `preserve_rare_values_distilled_min_cases` cases after distillation, funded by the
+            feature's other values.
             When not every value fits, those with the most cases are given priority. Without
             `max_distilled_cases`, the multipliers are computed for a default target of 50,000 cases.
             - A list of dicts of "value" and "multiplier", giving the multiplier each value should
             receive, at least 1. The feature's other values are reweighted to fund them so the total
-            case weight is unchanged: values with fewer cases than the significance threshold keep a
-            weight of 1, and every other value is scaled by one common factor, except that no value is
-            scaled below the number of cases that keeps the threshold after distillation. See
+            case weight is unchanged: values with fewer than `preserve_rare_values_min_cases` cases
+            keep a weight of 1, and every other value is scaled by one common factor, except that no
+            value is scaled below the number of cases that keeps
+            `preserve_rare_values_distilled_min_cases` after distillation. See
             `preserve_rare_values_caps` to limit how much weight those values give up. Without
             `max_distilled_cases`, the floor is computed for a target of 50,000 cases. If the other
             values cannot fund the multipliers, each multiplier's increase over 1 is scaled down and a
@@ -649,9 +653,20 @@ class InferFeatureAttributesTimeSeries(ABC):
             of its weight; given as a dict, the value for each feature is the largest share of its
             weight a significant value of that feature may give up, greater than 0 and at most 1.
             Features not listed give up as much as preserving every rare value requires, which draws
-            the weights of their significant values toward the floor that keeps the significance
-            threshold after distillation. When a cap leaves too little weight, the rare values with
-            the most cases are preserved and a warning reports how many.
+            the weights of their significant values toward the floor that keeps
+            `preserve_rare_values_distilled_min_cases` cases after distillation. When a cap leaves
+            too little weight, the rare values with the most cases are preserved and a warning
+            reports how many.
+
+        preserve_rare_values_distilled_min_cases : int, default 3
+            (Optional) The number of cases each preserved rare value is expected to keep after
+            distillation. It is also the fewest cases a frequent value is expected to keep when its
+            case weight is reduced to fund the rare values.
+
+        preserve_rare_values_min_cases : int, default 15
+            (Optional) The number of cases a value needs in the data to be considered for rare value
+            preservation. Values with fewer cases keep their case weight and do not fund rare values.
+            Must be at least `preserve_rare_values_distilled_min_cases`.
 
         rate_boundaries : dict, default None
             (Optional) For time series, specify the rate boundaries in the form
@@ -670,10 +685,6 @@ class InferFeatureAttributesTimeSeries(ABC):
                         }
                     }
                 }
-
-        significance_threshold : int, default 30
-            (Optional) After data distillation, the number of cases that are expected to result in a
-            signal for preserved rare values.
 
         tight_bounds: Iterable of str, default None
             (Optional) Set tight min and max bounds for the features
@@ -810,7 +821,8 @@ class InferFeatureAttributesTimeSeries(ABC):
             ordinal_feature_values=ordinal_feature_values,
             preserve_rare_values=preserve_rare_values,
             preserve_rare_values_caps=preserve_rare_values_caps,
-            significance_threshold=significance_threshold,
+            preserve_rare_values_distilled_min_cases=preserve_rare_values_distilled_min_cases,
+            preserve_rare_values_min_cases=preserve_rare_values_min_cases,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             types=types,
         )

@@ -473,8 +473,9 @@ def test_value_weight_multipliers_applied_at_train():
         "b": ["other"] * 960 + ["scarce"] * 40,
         "i": range(n),
     })
-    features = infer_feature_attributes(df, max_distilled_cases=100, significance_threshold=30,
-                                        preserve_rare_values=["a", "b"], enable_suggestions=False)
+    features = infer_feature_attributes(df, max_distilled_cases=100, preserve_rare_values=["a", "b"],
+                                        preserve_rare_values_min_cases=30, preserve_rare_values_distilled_min_cases=30,
+                                        enable_suggestions=False)
     multipliers = {
         feature: {entry["value"]: entry["multiplier"] for entry in features[feature]["value_weight_multipliers"]}
         for feature in ("a", "b")

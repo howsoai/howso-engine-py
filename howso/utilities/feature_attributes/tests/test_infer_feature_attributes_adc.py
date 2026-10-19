@@ -724,26 +724,30 @@ def test_preserve_rare_values(adc, capsys):
     """Test that IFA correctly infers and suggests `preserve_rare_values` configurations."""
     df = _percentile_df()
     convert_data(df, adc)
+    # The expected multipliers are for a value that needs 30 cases to qualify and is lifted to keep 30
+    thresholds = {"preserve_rare_values_min_cases": 30, "preserve_rare_values_distilled_min_cases": 30}
 
     # Test auto-apply with all values
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values="all")
+        features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values="all", **thresholds)
     assert "value_weight_multipliers" in features["a"]
     assert "value_weight_multipliers" in features["b"]
     multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["a"]["value_weight_multipliers"]}
-    # The rare value keeps the threshold exactly: 30 * 10,000 / (1,250 * 100); the common value funds it
+    # The rare value keeps 30 cases after distillation exactly: 30 * 10,000 / (1,250 * 100); the common value
+    # funds it
     assert multipliers == {"2": pytest.approx(2.4), "1": pytest.approx(0.99, abs=0.005)}
 
     # Without `max_distilled_cases` the values are weighted for the default target, and the user is told so;
     # at that target, which exceeds the data size, the value keeps the threshold on its own and needs nothing
     with pytest.warns(UserWarning, match="rare values of `a` were weighted for an assumed distillation target"):
-        features = infer_feature_attributes(adc, preserve_rare_values={"a": ["2"]})
+        features = infer_feature_attributes(adc, preserve_rare_values={"a": ["2"]}, **thresholds)
     assert "value_weight_multipliers" not in features["a"]
     assert "preserve_rare_values" not in features["a"]
 
     # Test auto-apply with selected values
-    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values={"b": ["y", "z"]})
+    features = infer_feature_attributes(adc, max_distilled_cases=1250, preserve_rare_values={"b": ["y", "z"]},
+                                        **thresholds)
     assert "value_weight_multipliers" not in features["a"]
     assert "value_weight_multipliers" in features["b"]
     multipliers = {cfg["value"]: cfg["multiplier"] for cfg in features["b"]["value_weight_multipliers"]}
@@ -754,7 +758,7 @@ def test_preserve_rare_values(adc, capsys):
     # Test that a suggestion is issued, and summarized on the console rather than as a warning
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        features = infer_feature_attributes(adc, max_distilled_cases=1250)
+        features = infer_feature_attributes(adc, max_distilled_cases=1250, **thresholds)
     assert "Feature Attributes Summary" in capsys.readouterr().out
     assert not any("value_weight_multipliers" in attrs for attrs in features.values())
     # Test a suggestion application
