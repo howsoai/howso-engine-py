@@ -119,12 +119,12 @@ DEALINGS IN THE SOFTWARE.
 
 
 certifi
-2026.10.18
+2026.10.19
 Mozilla Public License 2.0 (MPL 2.0)
 Kenneth Reitz
 https://github.com/certifi/python-certifi
 Python package for providing Mozilla's CA Bundle.
-/home/runner/.pyenv/versions/3.14.8/lib/python3.14/site-packages/certifi-2026.10.18.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.8/lib/python3.14/site-packages/certifi-2026.10.19.dist-info/licenses/LICENSE
 This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates

@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --cert=None --client-cert=None --extra=dev --extra=scikit --index-url=None --no-emit-index-url --no-index --output-file=requirements-3.14-dev.txt --pip-args=None
 #
-amalgam-lang==36.0.1
+amalgam-lang==36.0.2
     # via howso-engine (pyproject.toml)
 astroid==4.3.4
     # via pylint
@@ -12,7 +12,7 @@ build==1.6.1
     # via
     #   nab-project
     #   pip-tools
-certifi==2026.10.18
+certifi==2026.10.19
     # via
     #   howso-engine (pyproject.toml)
     #   requests
@@ -223,9 +223,9 @@ wheel==0.48.0
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==26.2.1
+pip==26.2.2
     # via pip-tools
-setuptools==84.0.0
+setuptools==84.2.1
     # via
     #   flake8-import-order
     #   pip-tools
