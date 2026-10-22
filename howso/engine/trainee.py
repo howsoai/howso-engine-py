@@ -2206,9 +2206,13 @@ class Trainee(BaseTrainee):
         max_series_lengths : list of int, optional
             maximum size a series is allowed to be.  Default is
             3 * model_size, a 0 or less is no limit. If forecasting
-            with ``continue_series``, this defines the maximum length of the
-            forecast. Must provide either one for all series, or exactly
-            one per series.
+            with ``continue_series``, this limit includes the continuation
+            anchor (the last row of ``series_context_values`` or the last
+            trained row of the series selected by ``series_id_values``),
+            which is not returned. To allow up to ``H`` returned forecast
+            rows, use ``H + 1``; other stopping conditions may end the
+            forecast earlier. Must provide either one for all series, or
+            exactly one per series.
         mutate_schema_features : list of str, optional
             List of semi-structured features whose values will be mutated,
             possibly changing their schema in generative reacts. Ignored in
