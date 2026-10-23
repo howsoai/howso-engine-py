@@ -3410,6 +3410,7 @@ class Trainee(BaseTrainee):
         features: Collection[str] | None = None,
         filter_fanout_values: bool = False,
         group_id_features: Collection[str] | None = None,
+        isolation_distance_contributions: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
         new_cases: TabularData3D | None = None,
@@ -3432,7 +3433,7 @@ class Trainee(BaseTrainee):
         action_features : list of str, optional
             A list of features whose values should be predicted for
             each group. Each group of cases gets a single action value for each
-            feature.
+            feature. Predictions are made holding out the rest of the group.
         case_indices : list of lists of lists of tuples of {str, int}, optional
             A list of lists of case indices tuples containing the session ID and
             the session training indices that uniquely identify trained cases.
@@ -3481,7 +3482,8 @@ class Trainee(BaseTrainee):
                 predicted for each group.
         distance_contributions : bool, default False
             Calculate and output the average distance contribution for each group
-            holding out rest of the group.
+            without holding out the rest of the group. Each case is only held out
+            of its own query.
         familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.
@@ -3495,11 +3497,18 @@ class Trainee(BaseTrainee):
             holding out other cases that have the same fanned out values
             duplicated. Only used when predicting the given ``action_features``.
         group_id_features : Collection of str, optional
-            List of feature names whose values in the specified cases identify
-            trained cases that should be held out of queries. This parameter is ignored if
-            ``new_cases`` is not specified. It is assumed that all groups of
-            cases have a singular value for each feature in
-            ``group_id_features``.
+            List of feature names whose values identify trained cases that
+            belong to the same group as the given ``new_cases``. These trained
+            cases are held out along with the group, but only in computations
+            that hold out the group: ``isolation_distance_contributions``,
+            ``residual_contributions``, ``similarity_conviction``, and
+            predictions of ``action_features``. They are not held out for
+            ``distance_contributions``. Each group is assumed to have a single
+            value for each of these features. Ignored if ``new_cases`` is not
+            specified.
+        isolation_distance_contributions : bool, default False
+            Calculate and output the average distance contribution for each group
+            holding out the rest of the group.
         kl_divergence_addition : bool, default False
             Calculate and output KL divergence of adding the
             specified cases.
@@ -3530,10 +3539,11 @@ class Trainee(BaseTrainee):
         p_value_of_removal : bool, default False
             If true will output :math:`p` value of removal.
         residual_contributions : bool, default False
-            Calculate and output mean residual contribution for each group's cases.
+            Calculate and output mean residual contribution for each group's cases
+            holding out the rest of the group.
         similarity_conviction : bool, default False
             If true will output the mean similarity conviction of the group's
-            cases.
+            cases holding out the rest of the group.
         task_id : str, optional
             If provided, should be a short, unique identifier that can be used
             with ``get_progress`` if concurrent progress updates are desired.
@@ -3561,6 +3571,7 @@ class Trainee(BaseTrainee):
                 features=features,
                 filter_fanout_values=filter_fanout_values,
                 group_id_features=group_id_features,
+                isolation_distance_contributions=isolation_distance_contributions,
                 distance_contributions=distance_contributions,
                 familiarity_conviction_addition=familiarity_conviction_addition,
                 familiarity_conviction_removal=familiarity_conviction_removal,
