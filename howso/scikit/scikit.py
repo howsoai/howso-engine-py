@@ -860,6 +860,12 @@ class HowsoEstimator(BaseEstimator):
                 'num_most_similar_cases' is not specified) relevant number of
                 similar cases, which will first include the influential cases.
                 Uses only the context features of the reacted case.
+            - most_similar_cases_features : list of str, optional
+                A list of feature names to output values for when outputting
+                most similar, influential, or boundary cases. If an empty list,
+                only the distance and session information of each case is
+                output. If unspecified, outputs all context and action
+                features.
             - num_boundary_cases : int, optional
                 Outputs this manually specified number of boundary cases.
             - num_most_similar_cases : int, optional
