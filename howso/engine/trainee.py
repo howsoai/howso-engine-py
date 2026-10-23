@@ -3433,7 +3433,7 @@ class Trainee(BaseTrainee):
         action_features : list of str, optional
             A list of features whose values should be predicted for
             each group. Each group of cases gets a single action value for each
-            feature.
+            feature. Predictions are made holding out the rest of the group.
         case_indices : list of lists of lists of tuples of {str, int}, optional
             A list of lists of case indices tuples containing the session ID and
             the session training indices that uniquely identify trained cases.
@@ -3539,10 +3539,11 @@ class Trainee(BaseTrainee):
         p_value_of_removal : bool, default False
             If true will output :math:`p` value of removal.
         residual_contributions : bool, default False
-            Calculate and output mean residual contribution for each group's cases.
+            Calculate and output mean residual contribution for each group's cases
+            holding out the rest of the group.
         similarity_conviction : bool, default False
             If true will output the mean similarity conviction of the group's
-            cases.
+            cases holding out the rest of the group.
         task_id : str, optional
             If provided, should be a short, unique identifier that can be used
             with ``get_progress`` if concurrent progress updates are desired.
