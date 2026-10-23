@@ -4471,6 +4471,7 @@ class AbstractHowsoClient(ABC):
         features: Collection[str] | None = None,
         filter_fanout_values: bool = False,
         group_id_features: Collection[str] | None = None,
+        isolation_distance_contributions: bool = False,
         kl_divergence_addition: bool = False,
         kl_divergence_removal: bool = False,
         new_cases: TabularData3D | None = None,
@@ -4542,7 +4543,8 @@ class AbstractHowsoClient(ABC):
                 predicted for each group.
         distance_contributions : bool, default False
             Calculate and output the average distance contribution for each group
-            holding out rest of the group.
+            without holding out the rest of the group. Each case is only held out
+            of its own query.
         familiarity_conviction_addition : bool, default False
             Calculate and output familiarity conviction of adding the
             specified cases.
@@ -4556,11 +4558,18 @@ class AbstractHowsoClient(ABC):
             holding out other cases that have the same fanned out values
             duplicated. Only used when predicting the given ``action_features``.
         group_id_features : Collection of str, optional
-            List of feature names whose values in the specified cases identify
-            trained cases that should be held out of queries. This parameter is ignored if
-            ``new_cases`` is not specified. It is assumed that all groups of
-            cases have a singular value for each feature in
-            ``group_id_features``.
+            List of feature names whose values identify trained cases that
+            belong to the same group as the given ``new_cases``. These trained
+            cases are held out along with the group, but only in computations
+            that hold out the group: ``isolation_distance_contributions``,
+            ``residual_contributions``, ``similarity_conviction``, and
+            predictions of ``action_features``. They are not held out for
+            ``distance_contributions``. Each group is assumed to have a single
+            value for each of these features. Ignored if ``new_cases`` is not
+            specified.
+        isolation_distance_contributions : bool, default False
+            Calculate and output the average distance contribution for each group
+            holding out the rest of the group.
         kl_divergence_addition : bool, default False
             Calculate and output KL divergence of adding the
             specified cases.
@@ -4649,6 +4658,7 @@ class AbstractHowsoClient(ABC):
             "features": features,
             "filter_fanout_values": filter_fanout_values,
             "group_id_features": group_id_features,
+            "isolation_distance_contributions": isolation_distance_contributions,
             "kl_divergence_addition": kl_divergence_addition,
             "kl_divergence_removal": kl_divergence_removal,
             "new_cases": serialized_cases,
