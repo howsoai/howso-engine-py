@@ -159,12 +159,9 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     if derived_orders is None:
         derived_orders = {}
 
-    # Pre-compute groupby object once
-    groupby_obj = None
-    id_cols = None
+    id_cols = []
     if id_feature_name:
         id_cols = [id_feature_name] if isinstance(id_feature_name, str) else list(id_feature_name)
-        groupby_obj = chunk.groupby(id_cols, sort=False)
 
     # Pre-convert datetime columns to epoch in one pass
     datetime_columns = {}
@@ -200,6 +197,21 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
                 DatetimeFormatWarning,
             )
 
+    # Order each series chronologically, retaining input order for synchronous events.
+    # Use positional indices so duplicate dataframe labels do not affect alignment.
+    time_key = epoch_data.get(time_feature_name, chunk[time_feature_name])
+    sort_keys = pd.DataFrame({"time": time_key.to_numpy()})
+    sort_cols = ["time"]
+    if id_cols:
+        # First-seen group codes keep IDs out of comparisons, including mixed types.
+        sort_keys["group"] = chunk.groupby(id_cols, sort=False).ngroup().to_numpy()
+        sort_cols.insert(0, "group")
+    row_order = sort_keys.sort_values(sort_cols, kind="stable").index
+    chunk = chunk.iloc[row_order]
+    epoch_data = {name: values.iloc[row_order] for name, values in epoch_data.items()}
+
+    # Pre-compute groupby object once, after ordering all columns consistently.
+    groupby_obj = chunk.groupby(id_cols, sort=False) if id_cols else None
     time_feature_deltas = None
 
     for f_name in feature_names:
@@ -237,7 +249,7 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
         if groupby_obj is not None:
             if f_name in epoch_data:
                 # Need to create a temporary series with the epoch data
-                deltas = col_data.groupby([chunk[c] for c in id_cols]).diff(1)
+                deltas = col_data.groupby([chunk[c] for c in id_cols], sort=False).diff(1)
             else:
                 deltas = groupby_obj[f_name].diff(1)
         else:
