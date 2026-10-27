@@ -291,6 +291,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if isinstance(random_value, str):
             random_value = random_value.strip()
 
+            # Explicitly declared as not a date/time; skip date/time detection
+            if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is False:
+                return FeatureType.STRING, {}
+
             max_samples = max(5, self._get_num_cases(feature_name))
             num_samples = 1
             while num_samples <= max_samples:
