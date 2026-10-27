@@ -180,7 +180,8 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
             if isinstance(dt_format, Collection) and not isinstance(dt_format, str) and len(dt_format) == 2:
                 dt_format, _ = dt_format
 
-        if dt_format is not None:
+        # `False` declares the feature as not a date/time
+        if dt_format is not None and dt_format is not False:
             datetime_columns[f_name] = dt_format
 
     # Batch convert datetime columns
@@ -426,13 +427,16 @@ class InferFeatureAttributesTimeSeries(ABC):
             features are assumed to be in ISO8601 format.  Non-English datetimes
             must have locales specified.  If locale is omitted, the default
             system locale is used. The keys are the feature name, and the values
-            are a tuple of date time format and locale string:
+            are a tuple of date time format and locale string. A value of ``False``
+            declares a feature as not a date/time, so date-like strings are kept as
+            strings; the time feature cannot be declared this way:
 
             Examples::
 
                 {
                     "start_date" : ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
-                    "end_date" : "%Y-%m-%d"
+                    "end_date" : "%Y-%m-%d",
+                    "version_label" : False
                 }
 
         default_time_zone : str, default None
@@ -789,6 +793,10 @@ class InferFeatureAttributesTimeSeries(ABC):
         # Ensure time feature isn't in time_invariant_features
         if self.time_feature_name in time_invariant_features:
             raise ValueError("time_feature_name cannot be in the time_invariant_features list.")
+
+        if datetime_feature_formats and datetime_feature_formats.get(self.time_feature_name) is False:
+            raise ValueError("time_feature_name cannot be declared as not a date/time in "
+                             "`datetime_feature_formats`.")
 
         # ID features are time-invariant.
         for id_feature in id_feature_names:
@@ -1202,7 +1210,8 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
                     if isinstance(dt_format, Collection) and not isinstance(dt_format, str) and len(dt_format) == 2:
                         dt_format, _ = dt_format
 
-                if dt_format is not None:
+                # `False` declares the feature as not a date/time
+                if dt_format is not None and dt_format is not False:
                     spark_format = _python_to_java_datetime_format(dt_format)
                     spark_df = spark_df.withColumn(
                         f"{f_name}_epoch", F.unix_timestamp(F.col(f_name), spark_format).cast("double")

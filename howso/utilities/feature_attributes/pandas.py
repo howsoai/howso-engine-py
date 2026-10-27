@@ -263,6 +263,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                 # DataFrames may use 'object' dtype for strings, detect
                 # string columns by checking the type of the data
                 if isinstance(first_non_null, str):
+                    # Explicitly declared as not a date/time; skip date/time detection
+                    if getattr(self, 'datetime_feature_formats', {}).get(feature_name) is False:
+                        return FeatureType.STRING, {}
                     max_samples = max(5, self._get_num_cases(feature_name))
                     num_samples = 1
                     while num_samples <= max_samples:

@@ -33,7 +33,7 @@ class InferOptions(TypedDict, total=False):
     """Infer feature attributes options."""
 
     attempt_infer_extended_nominals: bool
-    datetime_feature_formats: dict[str, str | tuple[str, str]]
+    datetime_feature_formats: dict[str, str | tuple[str, str] | Literal[False]]
     default_time_zone: str | None
     dependent_features: dict[str, list[str]]
     enable_suggestions: bool
@@ -131,7 +131,9 @@ def infer_feature_attributes(
         must have locales specified.  If locale is omitted, the default system locale is used.
         The keys are the feature name, and the values are a tuple of date/time format and locale
         string. Time-only feature formats are expected to adhere to the format codes used in
-        strftime().
+        strftime(). A value of ``False`` declares a feature as not a date/time, so date-like
+        strings are kept as strings rather than inferred as date, time or datetime features.
+        ``False`` has no effect on features whose data are already date/time objects.
 
         Examples::
 
@@ -139,6 +141,7 @@ def infer_feature_attributes(
                 "start_date": ("%Y-%m-%d %A %H.%M.%S", "es_ES"),
                 "end_date": "%Y-%m-%d",
                 "start_time": "%H:%M:%S %p",
+                "version_label": False,
             }
 
     default_time_zone : str, default None

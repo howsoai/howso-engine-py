@@ -255,6 +255,38 @@ def test_invalid_time_feature_format():
         )
 
 
+def test_time_feature_declared_not_datetime():
+    """Validates that declaring the time feature as not a date/time raises."""
+    df = pd.read_csv(example_timeseries_path)
+    with pytest.raises(ValueError, match="time_feature_name cannot be declared as not a date/time"):
+        infer_feature_attributes(
+            df,
+            time_feature_name="date",
+            id_feature_name="ID",
+            datetime_feature_formats={"date": False},
+            enable_suggestions=False
+        )
+
+
+@pytest.mark.parametrize("label_type", [None, "continuous"])
+def test_datetime_feature_formats_false_time_series(label_type):
+    """Validates that a `False` datetime format keeps a date-like string feature as a string."""
+    df = pd.read_csv(example_timeseries_path)
+    df["label"] = pd.to_datetime(df["date"], format="%Y%m%d").dt.strftime("%Y-%m-%d")
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        features = infer_feature_attributes(
+            df,
+            time_feature_name="date",
+            id_feature_name="ID",
+            datetime_feature_formats={"date": "%Y%m%d", "label": False},
+            types={"label": label_type} if label_type else None,
+            enable_suggestions=False
+        )
+    assert features["label"]["data_type"] != "formatted_date_time"
+    assert "date_time_format" not in features["label"]
+
+
 @pytest.mark.parametrize("data, types, expected_types, is_valid", [
     (pd.DataFrame({"a": [0, 1, 2, 3, 4, 5], "b": [3, 4, 5, 6, 7, 8]}), dict(b="continuous"), dict(b="continuous"),
      True),
