@@ -541,6 +541,30 @@ def test_formatted_date_time(adc):
     ("DaskDataFrameData", pd.DataFrame()),
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
+@pytest.mark.parametrize("values", [
+    ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-04"],
+    ["10:00:00", "11:00:00", "12:00:00", "13:00:00"],
+])
+def test_datetime_feature_formats_false_keeps_strings(adc, values):
+    """Test that a `False` datetime format keeps date-like strings as strings."""
+    convert_data(DataFrameData(pd.DataFrame({"label": values, "other": values})), adc)
+    features = infer_feature_attributes(adc, datetime_feature_formats={"label": False}, enable_suggestions=False)
+    assert features["label"]["type"] == "nominal"
+    assert features["label"]["data_type"] == "string"
+    assert "date_time_format" not in features["label"]
+    # Features not declared `False` are still detected as dates/times
+    assert features["other"]["data_type"] in ("formatted_date_time", "formatted_time")
+
+
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
 def test_constrained_date_bounds(adc):
     """Constrained datetime formats may make bounds undeterminable."""
     df = pd.DataFrame([["01"], ["02"]], columns=["date"])

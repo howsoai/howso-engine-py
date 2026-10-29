@@ -1198,6 +1198,55 @@ def test_constrained_date_bounds():
         infer_feature_attributes(df, datetime_feature_formats={"date": "%m"}, enable_suggestions=False)
 
 
+
+@pytest.mark.parametrize("values", [
+    ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-04"],
+    ["2020-01-01T10:00:00", "2020-01-02T11:00:00", "2020-01-03T12:00:00", "2020-01-04T13:00:00"],
+    ["10:00:00", "11:00:00", "12:00:00", "13:00:00"],
+])
+def test_datetime_feature_formats_false_keeps_strings(values):
+    """Test that a `False` datetime format keeps date-like strings as strings."""
+    df = pd.DataFrame({"label": values, "other": values})
+    features = infer_feature_attributes(df, datetime_feature_formats={"label": False}, enable_suggestions=False)
+    assert features["label"]["type"] == "nominal"
+    assert features["label"]["data_type"] == "string"
+    assert "date_time_format" not in features["label"]
+    # Features not declared `False` are still detected as dates/times
+    assert features["other"]["data_type"] in ("formatted_date_time", "formatted_time")
+    features.validate(df, raise_errors=True)
+
+
+@pytest.mark.parametrize(("values", "expected_data_type"), [
+    ([20100131, 20100228, 20100331, 20100430], "number"),
+    (["20100131", "20100228", "20100331", "20100430"], "string"),
+])
+def test_datetime_feature_formats_false_compact_dates(values, expected_data_type):
+    """Test that a `False` datetime format leaves int and digit-string dates as non-dates without warning."""
+    df = pd.DataFrame({"label": values})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        features = infer_feature_attributes(df, datetime_feature_formats={"label": False}, enable_suggestions=False)
+    assert features["label"]["data_type"] == expected_data_type
+    assert "date_time_format" not in features["label"]
+
+
+def test_datetime_feature_formats_false_with_continuous_type():
+    """Test that a `False` datetime format with a preset continuous type yields a tokenizable string."""
+    df = pd.DataFrame({"label": ["2020-01-01", "2020-01-02", "2020-01-03"]})
+    features = infer_feature_attributes(df, datetime_feature_formats={"label": False},
+                                        types={"label": "continuous"}, enable_suggestions=False)
+    assert features["label"]["type"] == "continuous"
+    assert features["label"]["data_type"] == "json"
+    assert features["label"]["original_type"]["data_type"] == FeatureType.TOKENIZABLE_STRING.value
+
+
+def test_datetime_feature_formats_false_native_datetime():
+    """Test that a `False` datetime format is ignored with a warning for native datetime data."""
+    df = pd.DataFrame({"when": pd.to_datetime(["2020-01-01 10:00", "2020-01-02 11:00", "2020-01-03 12:00"])})
+    with pytest.warns(UserWarning, match='"when" is declared as not a date/time'):
+        features = infer_feature_attributes(df, datetime_feature_formats={"when": False}, enable_suggestions=False)
+    assert features["when"]["data_type"] == "formatted_date_time"
+
 def test_nullable_integer_validation():
     """Test that IFA correctly validates data with nullable integers."""
     df = pd.DataFrame({"a": ["1", "2", "3", pd.NA, "4"]}, dtype="Int64")

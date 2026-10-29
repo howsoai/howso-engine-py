@@ -1299,6 +1299,15 @@ class InferFeatureAttributesBase(ABC):
 
             typing_info = typing_info or dict()
 
+            if (
+                self.datetime_feature_formats.get(feature_name) is False
+                and feature_type in (FeatureType.DATETIME, FeatureType.DATE, FeatureType.TIME)
+            ):
+                warnings.warn(
+                    f'The feature "{feature_name}" is declared as not a date/time in '
+                    '`datetime_feature_formats`, but its data is already formatted as '
+                    f'{feature_type.value} objects. This declaration will be ignored.')
+
             # EXPLICITLY DECLARED ORDINALS
             if feature_name in ordinal_feature_values:
                 if feature_name not in pre_processed_ordinals:
@@ -1620,8 +1629,11 @@ class InferFeatureAttributesBase(ABC):
     def _infer_string_attributes(self, feature_name: str) -> dict:
         """Get inferred attributes for the given string column."""
         # Column has arbitrary string values, first check if they
-        # are ISO8601 datetimes.
-        if self._is_iso8601_datetime_column(feature_name):
+        # are ISO8601 datetimes, unless explicitly declared as not a date/time.
+        if (
+            self.datetime_feature_formats.get(feature_name) is not False
+            and self._is_iso8601_datetime_column(feature_name)
+        ):
             # if datetime, determine the iso8601 format it's using
             if first_non_null := self._get_first_non_null(feature_name):
                 fmt = determine_iso_format(first_non_null, feature_name)
