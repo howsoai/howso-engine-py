@@ -161,6 +161,7 @@ jobs:
       workers: 'off'  # Amalgam ST > 78.0 is not thread safe at all
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
       debug: ${{ inputs.debug-mode }}
+      enable-spark: true  # Java 17 for pyspark 3.5; the runner's default JDK is too new for its Hadoop
 
   pytest-linux-3-14-mt:
     needs: ['metadata', 'build']
