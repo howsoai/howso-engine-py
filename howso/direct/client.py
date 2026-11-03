@@ -266,6 +266,40 @@ class HowsoDirectClient(AbstractHowsoClient):
         if gc_params:
             self.set_garbage_collection_params(gc_params)
 
+    def _warn_unsupported_runtime(self, runtime: TraineeRuntimeOptions | None) -> None:
+        """
+        Warn about Trainee runtime options this client cannot honor.
+
+        The Amalgam library is loaded once per client, so ``library_type`` is
+        accepted only when it matches the loaded library. Any other runtime
+        option is not supported by this client.
+
+        Parameters
+        ----------
+        runtime : TraineeRuntimeOptions, optional
+            The runtime options passed by the caller.
+        """
+        if not runtime:
+            return
+        library_type = runtime.get("library_type")
+        if library_type is not None:
+            loaded_type = "mt" if self._multithreaded else "st"
+            if library_type != loaded_type:
+                warnings.warn(
+                    f'The requested `runtime` library type "{library_type}" does not match the '
+                    f'loaded Amalgam library type "{loaded_type}". The `HowsoDirectClient` cannot '
+                    'change the library per Trainee. Modify the configuration '
+                    '`howso > client_extra_params > amalgam > library_postfix` in "howso.yml" instead.',
+                    UnsupportedArgumentWarning,
+                    stacklevel=3
+                )
+        if unsupported := sorted(k for k, v in runtime.items() if k != "library_type" and v is not None):
+            warnings.warn(
+                f"The `runtime` option(s) {unsupported} are not implemented for the `HowsoDirectClient`.",
+                UnsupportedArgumentWarning,
+                stacklevel=3
+            )
+
     def check_version(self) -> str | None:
         """Check if there is a more recent version."""
         http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED",
@@ -993,8 +1027,11 @@ class HowsoDirectClient(AbstractHowsoClient):
 
             .. deprecated:: 31.0
                 Pass via `runtime` instead.
-        runtime : TraineeRuntime, optional
-            (Not implemented in this client)
+        runtime : TraineeRuntimeOptions, optional
+            Runtime options for the Trainee. Only ``library_type`` is
+            supported, and it must match the loaded Amalgam library; a
+            mismatch or any other option raises an
+            :class:`UnsupportedArgumentWarning`.
 
         Returns
         -------
@@ -1026,13 +1063,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 stacklevel=2
             )
 
-        if runtime is not None:
-            warnings.warn(
-                '`runtime` is not implemented for the `HowsoDirectClient`. Modify the configuration '
-                '`howso > client_extra_params > amalgam > library_postfix` in "howso.yml" instead.',
-                UnsupportedArgumentWarning,
-                stacklevel=2
-            )
+        self._warn_unsupported_runtime(runtime)
 
         if trainee_id:
             # Ensure there are no invalid characters in the ID
@@ -1643,8 +1674,8 @@ class HowsoDirectClient(AbstractHowsoClient):
         runtime : TraineeRuntimeOptions, optional
             Library type, resource requirements, and other runtime settings
             for the new Trainee instance.  If not specified, the new trainee
-            will inherit the values from the original.  Not used in this
-            client implementation.
+            will inherit the values from the original.  Only ``library_type``
+            is supported, and it must match the loaded Amalgam library.
 
         Returns
         -------
@@ -1672,13 +1703,7 @@ class HowsoDirectClient(AbstractHowsoClient):
                 "The copy trainee parameter `resources` is deprecated and will be removed in "
                 "a future release. Please use `runtime` instead.", DeprecationWarning, stacklevel=2)
 
-        if runtime is not None:
-            warnings.warn(
-                '`runtime` is not implemented for the `HowsoDirectClient`. Modify the configuration '
-                '`howso > client_extra_params > amalgam > library_postfix` in "howso.yml" instead.',
-                UnsupportedArgumentWarning,
-                stacklevel=2
-            )
+        self._warn_unsupported_runtime(runtime)
 
         if original_trainee.persistence == "always":
             persist = True
