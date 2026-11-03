@@ -357,15 +357,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return None, None
 
-    @staticmethod
-    def _is_character_dtype(dtype) -> bool:
-        """Check if dtype is a subdtype of numpy.character."""
-        try:
-            # If numpy doesn't recognize the dtype, it will raise
-            return np.issubdtype(dtype, np.character)
-        except Exception:  # noqa: Deliberately broad
-            return False
-
     def _is_datetime_date_only(self, feature_name: str, max_rows: int = 1000) -> bool:
         """
         Return whether every sampled value of a datetime feature falls at midnight.

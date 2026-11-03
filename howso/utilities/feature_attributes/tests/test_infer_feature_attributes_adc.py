@@ -1,6 +1,7 @@
 """Tests the `infer_feature_attributes` package with AbstractData classes."""
 from datetime import date
 from pathlib import Path
+from typing import Any
 import warnings
 
 import numpy as np
@@ -993,3 +994,41 @@ def test_timezone_aware_datetime_retains_its_zone(adc):
     assert features["when"]["original_type"]["data_type"] == "datetime"
     assert features["when"]["original_type"].get("timezone") == "UTC"
     assert features["when"]["date_time_format"].endswith("%z")
+
+
+ZONED = ["2020-10-12T10:12:00Z", "2020-10-12T10:10:10Z", "2020-12-12T12:12:12Z", "1920-10-11T11:11:11Z"]
+
+
+@pytest.mark.parametrize("adc", [
+    ("MongoDBData", pd.DataFrame()),
+    ("SQLTableData", pd.DataFrame()),
+    ("ParquetDataFile", pd.DataFrame()),
+    ("ParquetDataset", pd.DataFrame()),
+    ("TabularFile", pd.DataFrame()),
+    ("DaskDataFrameData", pd.DataFrame()),
+    ("DataFrameData", pd.DataFrame()),
+], indirect=True)
+def test_zoned_iso_strings_keep_zone_format(adc: Any) -> None:
+    """Zoned ISO-8601 strings infer a zone-aware format and plain strings stay nominal through every ADC."""
+    convert_data(DataFrameData(pd.DataFrame({"when": ZONED, "label": ["a", "b", "c", "d"]})), adc)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features: Any = infer_feature_attributes(adc, enable_suggestions=False)
+    assert features["when"]["type"] == "continuous"
+    assert features["when"]["date_time_format"] == "%Y-%m-%dT%H:%M:%SZ"
+    assert features["label"]["type"] == "nominal"
+    assert features["label"]["data_type"] == "string"
+
+
+def test_string_extension_dtype_columns() -> None:
+    """Columns held in the pandas string extension dtype infer like object string columns."""
+    df = pd.DataFrame({
+        "when": pd.Series(ZONED, dtype="string"),
+        "label": pd.Series(["a", "b", "c", "d"], dtype="string"),
+    })
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features: Any = infer_feature_attributes(make_data_source(df), enable_suggestions=False)
+    assert features["when"]["date_time_format"] == "%Y-%m-%dT%H:%M:%SZ"
+    assert features["label"]["type"] == "nominal"
+    assert features["label"]["data_type"] == "string"
