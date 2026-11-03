@@ -723,19 +723,13 @@ class AbstractHowsoClient(ABC):
         # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
         if (
             isinstance(feature_attributes, Mapping) and
-            not isinstance(feature_attributes, MultiTableFeatureAttributes)
+            not isinstance(feature_attributes, FeatureAttributesBase)
         ):
             feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
 
         # See if any features were inferred to have data that is unsupported by the OS.
         # Issue a warning and drop the feature before training, if so.
-        unsupported_features = []
-        if isinstance(feature_attributes, MultiTableFeatureAttributes):
-            for stfa in feature_attributes.values():
-                unsupported_features = [feat for feat in stfa.keys() if stfa.has_unsupported_data(feat)]   # pyright: ignore[reportAttributeAccessIssue]
-        elif isinstance(feature_attributes, SingleTableFeatureAttributes):
-            unsupported_features = [feat for feat in feature_attributes.keys()
-                                    if feature_attributes.has_unsupported_data(feat)]
+        unsupported_features = self._get_unsupported_features(feature_attributes)
         if not isinstance(cases, list):
             for feature in unsupported_features:
                 warnings.warn(
@@ -797,14 +791,13 @@ class AbstractHowsoClient(ABC):
 
             while True:
                 if isinstance(batch, DataFrame):
+                    # Remove the unsupported features from each batch before validating it.
+                    batch = batch.drop(columns=unsupported_features)
                     # Validate each batch of cases separately.
                     self._train_validate_cases(batch, feature_attributes, validate)
                     # Come up with the feature list, if this is the first batch we've ever seen.
                     if features is None:
                         features = internals.get_features_from_data(batch)
-                    # If there are unsupported features, they need to be dropped in each batch.
-                    for feature in unsupported_features:
-                        batch.drop(features, axis=1, inplace=True)
                     # Turn the batch into data primitives to pass off to the engine.
                     batch_cases = serialize_cases(batch, features, feature_attributes, warn=True,
                                                   tokenizer=self._tokenizer) or []  # pyright: ignore[reportAttributeAccessIssue]
@@ -861,6 +854,33 @@ class AbstractHowsoClient(ABC):
         self._auto_persist_trainee(trainee_id)
 
         return status
+
+    @staticmethod
+    def _get_unsupported_features(feature_attributes: FeatureAttributesBase) -> list[str]:
+        """
+        Get the names of features that contain data unsupported by the Engine.
+
+        Parameters
+        ----------
+        feature_attributes : FeatureAttributesBase
+            Single table feature attributes, or multi-table feature attributes
+            whose tables are each checked.
+
+        Returns
+        -------
+        list of str
+            The unsupported feature names, without duplicates, in the order
+            first seen.
+        """
+        if isinstance(feature_attributes, MultiTableFeatureAttributes):
+            tables = list(feature_attributes.values())
+        else:
+            tables = [feature_attributes]
+        unsupported_features: list[str] = []
+        for table in tables:
+            if isinstance(table, SingleTableFeatureAttributes):
+                unsupported_features.extend(feat for feat in table.keys() if table.has_unsupported_data(feat))
+        return list(dict.fromkeys(unsupported_features))
 
     def _train_validate_cases(self, cases: TabularData2D, feature_attributes: FeatureAttributesBase, validate: bool):
         """
