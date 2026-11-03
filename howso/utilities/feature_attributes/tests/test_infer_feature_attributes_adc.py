@@ -524,9 +524,12 @@ def test_formatted_date_time(adc):
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
         warnings.filterwarnings("error")
+        warnings.filterwarnings(
+            "ignore", message=r"The following features were detected as possible datetimes", category=UserWarning)
         features = infer_feature_attributes(adc, datetime_feature_formats={"custom": "%Y/%m/%d"},
                                             default_time_zone="UTC", enable_suggestions=False)
         assert features['a']['data_type'] != "formatted_date_time"
+        assert features["time"].get("data_type") == "string"
         # custom feature dates should be formatted_date_time
         assert features['custom']['data_type'] == "formatted_date_time"
         # auto detected iso dates should be formatted_date_time

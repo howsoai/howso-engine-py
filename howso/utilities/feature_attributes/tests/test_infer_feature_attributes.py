@@ -1165,9 +1165,12 @@ def test_formatted_date_time():
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
         warnings.simplefilter("error")
+        warnings.filterwarnings(
+            "ignore", message=r"The following features were detected as possible datetimes", category=UserWarning)
         features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"},
                                             default_time_zone="UTC", enable_suggestions=False)
         assert features["a"]["data_type"] != "formatted_date_time"
+        assert features["time"].get("data_type") == "string"
         # custom feature dates should be formatted_date_time
         assert features["custom"]["data_type"] == "formatted_date_time"
         # auto detected iso dates should be formatted_date_time
@@ -1204,7 +1207,7 @@ def test_default_time_zone():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         # Providing a default_time_zone should prevent the warning
-        data.drop("custom3", axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
+        data = data.drop(columns="custom3")  # Will raise an unrelated warning that we already tested for
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
                                                                  "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST",
                                  enable_suggestions=False)
