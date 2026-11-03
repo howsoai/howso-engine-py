@@ -792,7 +792,7 @@ class AbstractHowsoClient(ABC):
             while True:
                 if isinstance(batch, DataFrame):
                     # Remove the unsupported features from each batch before validating it.
-                    batch = batch.drop(columns=unsupported_features)
+                    batch = batch.drop(columns=unsupported_features) if unsupported_features else batch
                     # Validate each batch of cases separately.
                     self._train_validate_cases(batch, feature_attributes, validate)
                     # Come up with the feature list, if this is the first batch we've ever seen.
