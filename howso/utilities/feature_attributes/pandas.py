@@ -227,10 +227,13 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     # Timestamp objects are instances of datetime.date/time, but only return 'DATE' here if
                     # it's *not* a Timestamp as there may be tzinfo we should inspect.
                     return FeatureType.DATE, {}
-                # Date-only Timestamp objects in Pandas will have a default time of midnight
+                # Date-only Timestamp objects in Pandas will have a default time of midnight.
+                # Confirm that holds across the column rather than for just this one value,
+                # so a timed column that happens to start at midnight is not demoted to a date.
                 if (isinstance(first_non_null, pd.Timestamp)
                     and first_non_null.time() == datetime.time(0, 0, 0)
                     and (not hasattr(dtype, "tz") or not dtype.tz)
+                    and self._is_datetime_date_only(feature_name)
                     ):
                         return FeatureType.DATE, {}
                 # Datetime feature (with timezone info)
@@ -238,6 +241,11 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
                     # If using a named time zone capture it, otherwise
                     # rely on the offset in the iso8601 format
                     tz_name = getattr(dtype.tz, 'key', None) or getattr(dtype.tz, 'zone', None)
+                    if tz_name is None and dtype.tz is datetime.timezone.utc:
+                        # Stdlib UTC exposes neither `key` nor `zone` the way
+                        # `zoneinfo` and `pytz` zones do, but it is still a
+                        # named zone, unlike fixed offsets.
+                        tz_name = 'UTC'
                     if tz_name:
                         typing_info['timezone'] = tz_name
                 # Datetime feature with no timezone info
@@ -357,6 +365,27 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
             return np.issubdtype(dtype, np.character)
         except Exception:  # noqa: Deliberately broad
             return False
+
+    def _is_datetime_date_only(self, feature_name: str, max_rows: int = 1000) -> bool:
+        """
+        Return whether every sampled value of a datetime feature falls at midnight.
+
+        A date-only column in a datetime dtype carries a midnight time
+        component on every row.
+        """
+        column = self.data[feature_name]
+        seen = 0
+        for start in range(0, len(column), max_rows):
+            chunk = column.iloc[start:start + max_rows].dropna()
+            if chunk.empty:
+                continue
+            if (chunk != chunk.dt.normalize()).any():
+                return False
+            seen += len(chunk)
+            if seen >= max_rows:
+                break
+        # No non-null values observed: nothing indicates a time component.
+        return True
 
     def _get_first_non_null(self, feature_name: str) -> t.Any | None:
         index = self.data[feature_name].first_valid_index()

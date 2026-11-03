@@ -13,7 +13,6 @@ import platform
 from numbers import Real
 from typing import Any, cast, Literal, Self, TYPE_CHECKING
 import warnings
-from zoneinfo import ZoneInfo
 
 from dateutil.parser import isoparse, parse as dt_parse
 import numpy as np
@@ -1892,15 +1891,51 @@ class InferFeatureAttributesBase(ABC):
                             dt_format[-1] == "Z",  # Last char of 'Z' is ISO8601 identifier for UTC
                             self.default_time_zone is not None]):
                     self.warnings_collector.triage(IFAWarningEmitterType.MISSING_TZ_FEATURES, feature_name)
-                elif "%z" in dt_format:
-                    rand_val = self._get_random_value(feature_name)
-                    if isinstance(rand_val, datetime.datetime):
-                        # Some datetime objects might have a time zone attribute not visible as a string
-                        if getattr(rand_val, "tzinfo", None) is not None and isinstance(rand_val.tzinfo, ZoneInfo):
-                            continue
-                    # Warn in case of UTC offset -- could lead to unexpected results due to time zone
-                    # differences
+                elif "%z" in dt_format and not self._has_dst_safe_time_zones(feature_name, dt_format):
+                    # Warn in case of nonzero UTC offsets -- could lead to unexpected results due to
+                    # daylight savings time
                     self.warnings_collector.triage(IFAWarningEmitterType.UTC_OFFSET, feature_name)
+
+    def _has_dst_safe_time_zones(self, feature_name: str, dt_format: str) -> bool:
+        """
+        Return whether a sample of a feature's values is unaffected by daylight savings time.
+
+        A value is safe when it is a datetime carrying a named time zone, or
+        when its UTC offset is zero, as no daylight savings transition applies
+        to UTC. A string that cannot be parsed with `dt_format` is not safe.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of the feature to sample.
+        dt_format : str
+            The date time format of the feature's string values.
+
+        Returns
+        -------
+        bool
+            True if every sampled value is safe.
+        """
+        # Filtering nulls out of a large column is costly, so a plain sample is
+        # tried first and the filtered one only for a sparse column.
+        sample = [v for v in self._get_random_value(feature_name, count=30) or [] if not pd.isna(v)]
+        if not sample:
+            sample = self._get_random_value(feature_name, no_nulls=True, count=30) or []
+        for raw_value in sample:
+            value = raw_value
+            if isinstance(raw_value, str):
+                try:
+                    value = datetime.datetime.strptime(raw_value, dt_format)  # noqa: DTZ007 -- dt_format has %z
+                except ValueError:
+                    return False
+            if not isinstance(value, datetime.datetime) or value.tzinfo is None:
+                return False
+            # `zoneinfo` zones expose `key` and `pytz` zones expose `zone`
+            if getattr(value.tzinfo, "key", None) or getattr(value.tzinfo, "zone", None):
+                continue
+            if value.utcoffset() != datetime.timedelta(0):
+                return False
+        return True
 
     @staticmethod
     def _is_datetime(string: str) -> bool:

@@ -1190,6 +1190,57 @@ def test_default_time_zone():
                                  enable_suggestions=False)
 
 
+_UTC_OFFSET_TIMES = ["2026-01-01 01:00:00", "2026-01-02 03:00:00", "2026-03-15 12:30:00", None]
+
+
+@pytest.mark.parametrize("default_time_zone", [None, "UTC"])
+@pytest.mark.parametrize(("column", "expect_warning"), [
+    (pd.Series([f"{s}+00:00" if s else None for s in _UTC_OFFSET_TIMES]), False),
+    (pd.Series([f"{s}Z" if s else None for s in _UTC_OFFSET_TIMES]), False),
+    (pd.to_datetime(pd.Series(_UTC_OFFSET_TIMES), utc=True), False),
+    (pd.to_datetime(pd.Series(_UTC_OFFSET_TIMES)).dt.tz_localize("America/New_York"), False),
+    (pd.Series([datetime.datetime(2026, 1, 1, 1, tzinfo=datetime.timezone.utc)] * 3 + [None], dtype=object), False),
+    (pd.Series([f"{s}+05:00" if s else None for s in _UTC_OFFSET_TIMES]), True),
+    (pd.Series([f"{s}+00:00" for s in _UTC_OFFSET_TIMES[:-1]] + ["2026-01-01 01:00:00-05:00"] * 60), True),
+    (pd.Series([datetime.datetime(2026, 1, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(hours=5)))] * 3,
+               dtype=object), True),
+])
+def test_utc_offset_warning(column, expect_warning, default_time_zone):
+    """Only nonzero fixed UTC offsets warn; UTC and named time zones are unaffected by daylight savings time."""
+    df = pd.DataFrame({"when": column})
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        infer_feature_attributes(df, default_time_zone=default_time_zone, enable_suggestions=False)
+    offset_warnings = [w for w in caught if "The following features are using UTC offsets" in str(w.message)]
+    assert bool(offset_warnings) == expect_warning
+
+
+@pytest.mark.parametrize("tz", [None, "UTC"])
+def test_datetime_beginning_at_midnight_keeps_its_time(tz):
+    """A timed column whose first value is midnight is not demoted to a date."""
+    df = pd.DataFrame({"when": pd.date_range("2026-01-01 00:00:00", periods=48, freq="h", tz=tz)})
+    features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
+    assert features["when"]["original_type"]["data_type"] == "datetime"
+    assert "%H:%M:%S" in features["when"]["date_time_format"]
+
+
+def test_date_only_datetime_column_is_still_a_date():
+    """A datetime column that carries no time is still inferred as a date."""
+    df = pd.DataFrame({"when": pd.date_range("2026-01-01", periods=12, freq="D")})
+    features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
+    assert features["when"]["original_type"]["data_type"] == "date"
+    assert features["when"]["date_time_format"] == "%Y-%m-%d"
+
+
+def test_utc_datetime_retains_its_zone():
+    """A stdlib-UTC column records UTC as its time zone."""
+    df = pd.DataFrame({"when": pd.date_range("2026-03-01 06:30:00", periods=24, freq="h", tz="UTC")})
+    assert df["when"].dt.tz is datetime.timezone.utc
+    features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
+    assert features["when"]["original_type"].get("timezone") == "UTC"
+    assert features["when"]["date_time_format"].endswith("%z")
+
+
 def test_constrained_date_bounds():
     """Constrained datetime formats may make bounds undeterminable."""
     df = pd.DataFrame([["01"], ["02"]], columns=["date"])
