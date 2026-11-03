@@ -2796,12 +2796,12 @@ THE SOFTWARE.
 
 
 python-dateutil
-3.0.0
-Apache Software License; BSD License
-Gustavo Niemeyer
+4.0.0
+BSD-3-Clause
+Gustavo Niemeyer <gustavo@niemeyer.net>
 https://github.com/dateutil/dateutil
 Extensions to the standard Python datetime module
-/home/runner/.pyenv/versions/3.14.10/lib/python3.14/site-packages/python_dateutil-3.0.0.dist-info/licenses/LICENSE
+/home/runner/.pyenv/versions/3.14.10/lib/python3.14/site-packages/python_dateutil-4.0.0.dist-info/licenses/LICENSE
 Copyright 2017- Paul Ganssle <paul@ganssle.io>
 Copyright 2017- dateutil contributors (see AUTHORS file)
 
@@ -3373,33 +3373,6 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-six
-1.17.0
-MIT License
-Benjamin Peterson
-https://github.com/benjaminp/six
-Python 2 and 3 compatibility utilities
-/home/runner/.pyenv/versions/3.14.10/lib/python3.14/site-packages/six-1.17.0.dist-info/LICENSE
-Copyright (c) 2010-2024 Benjamin Peterson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 tqdm
