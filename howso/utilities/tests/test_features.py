@@ -4,6 +4,7 @@ import json
 import locale
 from pathlib import Path
 import re
+from typing import Any, Literal
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -18,12 +19,19 @@ import pytest
 from howso.engine import Trainee
 from howso.utilities import infer_feature_attributes
 from howso.utilities.features import FeatureSerializer, FeatureType
-from howso.utilities.internals import sanitize_for_json
+from howso.utilities.internals import deserialize_to_dataframe, sanitize_for_json
 from howso.utilities.tests import has_locales
 from howso.utilities.utilities import LocaleOverride
 
 cwd = Path(__file__).parent.parent.parent
 monk_path = Path(cwd, 'utilities', 'tests', 'data', 'monk1.csv')
+
+
+def _serialize_to_dataframe(df: pd.DataFrame, features: dict[str, Any]) -> pd.DataFrame:
+    """Serialize a DataFrame through JSON, as cases are sent to and from the engine, without formatting it."""
+    columns = df.columns.tolist()
+    cases = json.loads(json.dumps(sanitize_for_json(FeatureSerializer.serialize(df, columns, features))))
+    return deserialize_to_dataframe(cases, columns, index=df.index)
 
 
 @pytest.mark.parametrize('data_format', ['pandas', 'numpy'])
@@ -526,3 +534,94 @@ def test_feature_original_type_to_dtype():
             assert dtype == expected_dtype, f"{name} dtype: {dtype} != {expected_dtype}"
         else:
             assert len(filtered_cases) == 0, f"{name}: found unexpected null cases"
+
+
+@pytest.mark.parametrize(("data", "type_override"), [
+    (np.array([0.5, 1.5, 2.5]), None),
+    (np.array([0.5, 1.5, 2.5], dtype="float32"), None),
+    (np.array([1, 2, 3]), None),
+    (np.array([1, 2, 3], dtype="int8"), None),
+    (pd.array([1, None, 3], dtype="Int64"), None),
+    (pd.array([1, None, 3], dtype="Int8"), None),
+    ([decimal.Decimal("1.1"), decimal.Decimal("2.2"), decimal.Decimal("3.3")], None),
+    ([True, False, True], None),
+    ([True, None, False], None),
+    (pd.to_datetime(["2024-01-01 10:00", "2024-06-01 11:30", "2024-12-31 23:59"]), None),
+    (pd.to_datetime(["2024-01-01 10:00", "2024-06-01 11:30", "2024-12-31 23:59"]).tz_localize(
+        ZoneInfo("US/Eastern")), None),
+    (pd.to_timedelta(["1 days", "2 hours", "30 minutes"]), None),
+    (["a", "b", "c"], None),
+    (["the cat sat", None, "a dog ran"], "continuous"),  # tokenizable string
+    ([{"k": 1}, None, [1, 2]], None),
+    ([{1, 2}, None, {3}], None),
+])
+def test_format_column(data: Any, type_override: Literal["continuous", "nominal"] | None):
+    """Test each formatted column type is restored with the original index and name."""
+    index = pd.Index([5, 10, 15], name="case")
+    df = pd.DataFrame({"a": data}, index=index)
+    features = infer_feature_attributes(
+        df,
+        types={"a": type_override} if type_override else None,
+        default_time_zone="UTC",
+        enable_suggestions=False,
+    )
+    raw = _serialize_to_dataframe(df, features)
+
+    formatted = FeatureSerializer.format_column(raw["a"], features["a"])
+    pd.testing.assert_series_equal(formatted, df["a"])
+
+
+@pytest.mark.parametrize("columns", (["a", "b"], None))
+def test_formatting_empty_dataframe(columns: list[str] | None):
+    """Test formatting empty dataframe returns it."""
+    df = pd.DataFrame(columns=columns)
+    formatted_df = FeatureSerializer.format_dataframe(df, {})
+    pd.testing.assert_frame_equal(df, formatted_df)
+
+
+@pytest.mark.filterwarnings("error")
+def test_format_dataframe_not_fragmented():
+    """Test that frames are not fragmented when formatted."""
+    df = pd.DataFrame({
+        "date": ["2024-01-01", "2025-02-01", "2026-03-03"],
+        "int": [0, 1, 2],
+        "float": [0.0, 1.1, 2.2],
+        "str": ["a", "b", "c"],
+        "int2": [3, 4, 5],
+    })
+    original_df = df.copy()
+    features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
+    features["date"]["original_type"] = {"data_type": "date"}  # format to datetime64 objects instead
+    formatted_df = FeatureSerializer.format_dataframe(df, features=features)
+
+    # Test frame not fragmented
+    assert formatted_df._mgr.is_consolidated()
+    # Test frame not mutated
+    pd.testing.assert_frame_equal(df, original_df)
+    # Test new frame indexes match
+    pd.testing.assert_index_equal(original_df.columns, formatted_df.columns)
+    pd.testing.assert_index_equal(original_df.index, formatted_df.index)
+
+
+@pytest.mark.filterwarnings("error")
+def test_format_dataframe_indexes():
+    """Test that frames can be formatted with missing attributes or duplicate indexes."""
+    df = pd.DataFrame({
+        "a": [1, 2, 3],
+        "b": ["a", "b", "c"],
+        "c": [3, 4, 5],
+    }, index=[5, 5, 15])
+    df.attrs = {"abc": 123}
+
+    features = infer_feature_attributes(df[["a"]], enable_suggestions=False)  # only infer for one feature
+    df.columns = ["a", "b", "a"]  # duplicate column names
+    original_df = df.copy()
+
+    formatted_df = FeatureSerializer.format_dataframe(df, features=features)
+
+    assert formatted_df.attrs == original_df.attrs
+    # Test new frame indexes still match
+    pd.testing.assert_index_equal(original_df.columns, formatted_df.columns)
+    pd.testing.assert_index_equal(original_df.index, formatted_df.index)
+    # Test values unchanged
+    pd.testing.assert_frame_equal(formatted_df, original_df)
