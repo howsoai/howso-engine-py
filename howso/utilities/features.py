@@ -233,10 +233,6 @@ class FeatureSerializer:
         """
         Format DataFrame columns to original type using feature attributes.
 
-        .. note::
-
-            Modifies DataFrame in place.
-
         Parameters
         ----------
         df : pandas.DataFrame
@@ -253,15 +249,27 @@ class FeatureSerializer:
         pandas.DataFrame
             The formatted data.
         """
-        for col in df.columns.tolist():
+        columns: list[pd.Series] = []
+        for i, col in enumerate(df.columns):
+            column = df.iloc[:, i]
             try:
                 attributes = features[col]
             except (TypeError, KeyError):
-                # Column not in feature attributes, skip column
-                continue
-            df[col] = cls.format_column(df[col], attributes, tokenizer=tokenizer)
+                # Column not in feature attributes, skip formatting
+                columns.append(column)
+            else:
+                formatted = cls.format_column(column, attributes, tokenizer=tokenizer)
+                # Ensure we always have the same index
+                formatted.index = column.index
+                columns.append(formatted)
 
-        return df
+        if not columns:
+            return df.copy()
+
+        result = pd.concat(columns, axis=1)
+        result.columns = df.columns
+        result.attrs = df.attrs
+        return result
 
     @classmethod
     def format_column(  # noqa: PLR0911
@@ -699,10 +707,7 @@ class FeatureSerializer:
             The formatted column.
         """
         tokenizer = tokenizer or HowsoTokenizer()
-        return pd.Series(
-            None if tokens is None else tokenizer.detokenize(tokens)
-            for tokens in destringify_json(column, feature)
-        )
+        return destringify_json(column, feature).map(tokenizer.detokenize, na_action="ignore")
 
     @classmethod
     def format_unknown_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003

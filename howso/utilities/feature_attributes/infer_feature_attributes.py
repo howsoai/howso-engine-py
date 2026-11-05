@@ -55,7 +55,7 @@ class InferOptions(TypedDict, total=False):
     preserve_rare_values_min_cases: int
     significance_threshold: int
     tight_bounds: Iterable[str]
-    types: dict[str, FeatureType] | dict[FeatureType, list[str]]
+    types: dict[str, FeatureType] | dict[FeatureType, list[str]] | None
 
 
 class InferTimeSeriesOptions(InferOptions, total=False):

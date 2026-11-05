@@ -824,9 +824,9 @@ def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attr
                     case_group[idx] = json.dumps(value)
 
 
-def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:
+def destringify_json(cases: pd.Series, feature_attributes: Mapping[str, Any]) -> pd.Series:
     """
-    Ensure that any JSON features have their cases destringified.
+    Ensure that any JSON features have their cases de-stringified.
 
     Null values are returned as None. A null may arrive either directly as a null value or JSON
     encoded as the literal ``null`` (which `json.loads` decodes to None).
@@ -852,7 +852,7 @@ def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series
         if formatted_case is not None and typing_info.get("coercion") == "set":
             formatted_case = set(formatted_case)
         destringified_cases.append(formatted_case)
-    return pd.Series(destringified_cases)
+    return pd.Series(destringified_cases, index=cases.index, name=cases.name)
 
 
 def tokenize_strings(
