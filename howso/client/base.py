@@ -736,8 +736,8 @@ class AbstractHowsoClient(ABC):
                     f"Ignoring feature {feature} as it contains values that are too "
                     "large or small for your operating system. Please evaluate the "
                     "bounds for this feature.")
-                if isinstance(cases, DataFrame):
-                    cases.drop(feature, axis=1, inplace=True)
+            if isinstance(cases, DataFrame):
+                cases, features = self._drop_unsupported_features(cases, features, unsupported_features)
 
         util.validate_list_shape(features, 1, "features", "str")
 
@@ -792,7 +792,7 @@ class AbstractHowsoClient(ABC):
             while True:
                 if isinstance(batch, DataFrame):
                     # Remove the unsupported features from each batch before validating it.
-                    batch = batch.drop(columns=unsupported_features) if unsupported_features else batch
+                    batch, features = self._drop_unsupported_features(batch, features, unsupported_features)
                     # Validate each batch of cases separately.
                     self._train_validate_cases(batch, feature_attributes, validate)
                     # Come up with the feature list, if this is the first batch we've ever seen.
@@ -881,6 +881,42 @@ class AbstractHowsoClient(ABC):
             if isinstance(table, SingleTableFeatureAttributes):
                 unsupported_features.extend(feat for feat in table.keys() if table.has_unsupported_data(feat))
         return list(dict.fromkeys(unsupported_features))
+
+    @staticmethod
+    def _drop_unsupported_features(
+        cases: DataFrame,
+        features: Collection[str] | None,
+        unsupported_features: Collection[str],
+    ) -> tuple[DataFrame, Collection[str] | None]:
+        """
+        Remove unsupported features from cases to train and from their feature list.
+
+        `cases` itself is not modified. Unsupported features absent from
+        `cases` or `features` are ignored.
+
+        Parameters
+        ----------
+        cases : DataFrame
+            The cases to train.
+        features : Collection of str, optional
+            The features to train, if given explicitly.
+        unsupported_features : Collection of str
+            The names of the features to remove.
+
+        Returns
+        -------
+        DataFrame
+            The cases without the unsupported features.
+        Collection of str or None
+            The features without the unsupported features, in their original
+            order, or None if `features` is None.
+        """
+        if not unsupported_features:
+            return cases, features
+        cases = cases.drop(columns=unsupported_features, errors="ignore")
+        if features is not None:
+            features = [feature for feature in features if feature not in unsupported_features]
+        return cases, features
 
     def _train_validate_cases(self, cases: TabularData2D, feature_attributes: FeatureAttributesBase, validate: bool):
         """

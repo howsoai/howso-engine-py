@@ -1578,23 +1578,34 @@ def test_get_unsupported_features(feature_attributes: FeatureAttributesBase, exp
     assert AbstractHowsoClient._get_unsupported_features(feature_attributes) == expected
 
 
-def _batches(df: pd.DataFrame, size: int = 10) -> Generator[pd.DataFrame, int, None]:
-    """Yield `df` in slices, honoring batch sizes sent by the caller."""
+def _batches(
+    df: pd.DataFrame, yielded: list[pd.DataFrame], size: int = 10
+) -> Generator[pd.DataFrame, int, None]:
+    """Yield `df` in slices, honoring batch sizes sent by the caller and recording each slice in `yielded`."""
     start = 0
     while start < len(df):
         batch = df.iloc[start:start + size].copy()
+        yielded.append(batch)
         start += len(batch)
         size = (yield batch) or size
 
 
-def test_train_generator_drops_unsupported_feature() -> None:
-    """Test that training from a DataFrame generator drops only the unsupported feature."""
+@pytest.mark.parametrize("as_generator", [False, True], ids=["dataframe", "generator"])
+@pytest.mark.parametrize("variant", ["all-columns", "prefiltered", "explicit-features"])
+def test_train_drops_unsupported_feature(as_generator: bool, variant: str) -> None:
+    """Test that training drops only the unsupported feature and leaves the caller's data unchanged."""
     df = pd.read_csv(iris_file_path.with_name("mini_stock_data.csv"))
     df.loc[0, "CLOSE"] = FLOAT_MIN - .00001
     df.loc[1, "CLOSE"] = FLOAT_MAX + .00001
     features = infer_feature_attributes(df, tight_bounds=["CLOSE"], enable_suggestions=False)
     assert isinstance(features, SingleTableFeatureAttributes)
     assert features.has_unsupported_data("CLOSE")
+
+    train_features = list(df.columns) if variant == "explicit-features" else None
+    if variant == "prefiltered":
+        df = df.drop(columns="CLOSE")
+    original = df.copy()
+    yielded: list[pd.DataFrame] = []
 
     trainee = Trainee(features=features)
     assert isinstance(trainee.client, AbstractHowsoClient)
@@ -1604,11 +1615,14 @@ def test_train_generator_drops_unsupported_feature() -> None:
         cached = trainee.client.trainee_cache.get_item(trainee.id)
         cached["feature_attributes"] = cast("dict[str, dict[str, Any]]", features)
         with pytest.warns(UserWarning, match="Ignoring feature CLOSE"):
-            trainee.train(_batches(df))
+            trainee.train(_batches(df, yielded) if as_generator else df, features=train_features)
         cases = trainee.get_cases()
     finally:
         trainee.delete()
 
+    pd.testing.assert_frame_equal(df, original)
+    for batch in yielded:
+        pd.testing.assert_frame_equal(batch, original.loc[batch.index])
     assert len(cases) == len(df)
     for feature in df.columns:
         if feature != "CLOSE":
