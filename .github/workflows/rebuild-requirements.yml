@@ -14,7 +14,7 @@ on:
         type: boolean
         default: true
       extras:
-        description: A whitespace-separated list of Python "extras" that should be installed into requirements-<version>-dev.txt (e.g., "dev scikit")
+        description: A whitespace-separated list of Python "extras" to lock into pylock.toml alongside the runtime dependencies (e.g., "dev scikit")
         type: string
         required: false
         default: "dev scikit"
@@ -70,6 +70,7 @@ jobs:
       force-rebuild: true
       extras: ${{ inputs.extras }}
       constraints-file: .github/lockfile-constraints.txt
+      lock-format: pylock
 
   gen-pr-title:
     if: inputs.create-pr == true
@@ -101,4 +102,4 @@ jobs:
     with:
       branch: ${{ needs.gen-branch-name.outputs.branch }}
       title: ${{ needs.gen-pr-title.outputs.title }}
-      body: "Automated PR with generated requirements.txt files."
+      body: "Automated PR with a regenerated pylock.toml."
