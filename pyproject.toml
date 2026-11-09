@@ -38,7 +38,7 @@ dependencies = [
     "mmh3",
     "numpy>=2.3,<2.6",
     "packaging",
-    "pandas<3.0",
+    "pandas<4.0",
     "psutil",
     "python-dateutil",
     "pyyaml~=6.0",
