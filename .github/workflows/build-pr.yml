@@ -58,6 +58,7 @@ jobs:
     secrets: inherit
     with:
       extras: 'dev scikit'
+      constraints-file: .github/lockfile-constraints.txt
 
   build:
     needs: ['gen-requirements']

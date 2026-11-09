@@ -269,7 +269,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
             elif is_bool_dtype(dtype) or self._is_boolean_feature(feature_name):
                 return FeatureType.BOOLEAN, {}
 
-            elif np.issubdtype(dtype, np.character):
+            elif self._is_character_dtype(dtype):
                 if getattr(dtype, 'kind', None) != 'U':
                     warnings.warn(
                         f'The column "{feature_name}" contained bytes, original '
@@ -605,13 +605,13 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
                         )
                         min_v, max_v = None, None
 
-                if is_float_dtype(min_v):
+                if isinstance(min_v, np.floating):
                     min_v = float(min_v)
-                if is_float_dtype(max_v):
+                if isinstance(max_v, np.floating):
                     max_v = float(max_v)
-                if is_float_dtype(observed_min_value):
+                if isinstance(observed_min_value, np.floating):
                     observed_min_value = float(observed_min_value)
-                if is_float_dtype(observed_max_value):
+                if isinstance(observed_max_value, np.floating):
                     observed_max_value = float(observed_max_value)
 
                 if min_v and isinstance(min_v, str):
@@ -723,8 +723,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         if isinstance(dtype, pd.DatetimeTZDtype):
             # Include timezone offset in format
             dt_format += '%z'
-        # If dtype is an object, we will need to try to infer the format
-        elif dtype == 'object':
+        # A string or object column needs its format inferred from the values
+        elif pd.api.types.is_string_dtype(dtype):
             first_non_null = self._get_first_non_null(feature_name)
             if isinstance(first_non_null, datetime.datetime):
                 # In the event of mixed timezone values the column dtype will
@@ -750,8 +750,8 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         }
 
     def _infer_date_attributes(self, feature_name: str) -> dict:
-        dtype = self.data.get_column_dtype(feature_name)
-        if dtype == "object" and not self._is_iso8601_datetime_column(feature_name):
+        dtype = self._get_column_dtype(feature_name)
+        if pd.api.types.is_string_dtype(dtype) and not self._is_iso8601_datetime_column(feature_name):
             raise ValueError(f'Feature {feature_name} recognized as a date with non-ISO8601 format. Please '
                              'specify the format via `datetime_feature_formats`.')
         return {

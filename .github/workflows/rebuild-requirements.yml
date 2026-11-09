@@ -69,6 +69,7 @@ jobs:
       branch: ${{ needs.gen-branch-name.outputs.branch }}
       force-rebuild: true
       extras: ${{ inputs.extras }}
+      constraints-file: .github/lockfile-constraints.txt
 
   gen-pr-title:
     if: inputs.create-pr == true

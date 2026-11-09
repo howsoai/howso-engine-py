@@ -1,0 +1,7 @@
+# Constraints applied only when CI generates requirements-<python>[-dev].txt.
+# They select which pandas each CI Python job tests; they are not package metadata.
+# Oldest Python: the lowest supported pandas line.
+pandas~=2.2.0; python_version < "3.12"
+# Middle Pythons: newest pandas 2.x.
+pandas<3; python_version >= "3.12" and python_version < "3.14"
+# Newest Python: unconstrained, resolves the newest pandas the dependencies allow.

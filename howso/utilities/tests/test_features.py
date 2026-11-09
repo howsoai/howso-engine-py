@@ -4,11 +4,12 @@ import json
 import locale
 from pathlib import Path
 import re
-from typing import Any, Literal
+import typing as t
 import warnings
 from zoneinfo import ZoneInfo
 
 import numpy as np
+from packaging.version import Version
 import pandas as pd
 from pandas.core.dtypes.common import (
     is_datetime64_dtype,
@@ -26,8 +27,17 @@ from howso.utilities.utilities import LocaleOverride
 cwd = Path(__file__).parent.parent.parent
 monk_path = Path(cwd, 'utilities', 'tests', 'data', 'monk1.csv')
 
+PANDAS_3 = Version(pd.__version__).major >= 3
 
-def _serialize_to_dataframe(df: pd.DataFrame, features: dict[str, Any]) -> pd.DataFrame:
+
+def _dtype_matches(actual: t.Any, expected: t.Any) -> bool:
+    """Return whether `actual` is the expected dtype; the `pd.StringDtype` class matches any string dtype."""
+    if expected is pd.StringDtype:
+        return is_string_dtype(actual)
+    return actual == expected
+
+
+def _serialize_to_dataframe(df: pd.DataFrame, features: dict[str, t.Any]) -> pd.DataFrame:
     """Serialize a DataFrame through JSON, as cases are sent to and from the engine, without formatting it."""
     columns = df.columns.tolist()
     cases = json.loads(json.dumps(sanitize_for_json(FeatureSerializer.serialize(df, columns, features))))
@@ -53,10 +63,18 @@ def _serialize_to_dataframe(df: pd.DataFrame, features: dict[str, Any]) -> pd.Da
      {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([datetime.timedelta(microseconds=1000)],
      {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
-    ([np.timedelta64(5, 'Y')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
-    ([np.timedelta64(3, 'M')],
-     {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
+    pytest.param(
+        [np.timedelta64(5, 'Y')],
+        {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'},
+        False,
+        marks=pytest.mark.skipif(PANDAS_3, reason="pandas 3 rejects ambiguous timedelta units"),
+    ),
+    pytest.param(
+        [np.timedelta64(3, 'M')],
+        {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'},
+        False,
+        marks=pytest.mark.skipif(PANDAS_3, reason="pandas 3 rejects ambiguous timedelta units"),
+    ),
     ([np.timedelta64(50, 'W')],
      {'data_type': str(FeatureType.TIMEDELTA), 'unit': 'seconds'}, False),
     ([np.timedelta64(10, 'D')],
@@ -526,12 +544,13 @@ def test_feature_original_type_to_dtype():
 
         # Validate expected dtypes given all cases or filtered cases
         expected_dtype = expected["dtype"]
-        assert cases[name].dtype == expected_dtype, f"{name} dtype: {cases[name].dtype} != {expected_dtype}"
+        case_dtype = cases[name].dtype
+        assert _dtype_matches(case_dtype, expected_dtype), f"{name} dtype: {case_dtype} != {expected_dtype}"
 
         filtered_cases = trainee.get_cases(features=[name], condition={name: None})
         if nullable:
             dtype = filtered_cases[name].dtype
-            assert dtype == expected_dtype, f"{name} dtype: {dtype} != {expected_dtype}"
+            assert _dtype_matches(dtype, expected_dtype), f"{name} dtype: {dtype} != {expected_dtype}"
         else:
             assert len(filtered_cases) == 0, f"{name}: found unexpected null cases"
 
@@ -555,7 +574,7 @@ def test_feature_original_type_to_dtype():
     ([{"k": 1}, None, [1, 2]], None),
     ([{1, 2}, None, {3}], None),
 ])
-def test_format_column(data: Any, type_override: Literal["continuous", "nominal"] | None):
+def test_format_column(data: t.Any, type_override: t.Literal["continuous", "nominal"] | None):
     """Test each formatted column type is restored with the original index and name."""
     index = pd.Index([5, 10, 15], name="case")
     df = pd.DataFrame({"a": data}, index=index)

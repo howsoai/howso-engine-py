@@ -1138,6 +1138,15 @@ class InferFeatureAttributesBase(ABC):
     It is agnostic to the type of data being inspected.
     """
 
+    @staticmethod
+    def _is_character_dtype(dtype: Any) -> bool:
+        """Check if dtype is a subdtype of numpy.character."""
+        try:
+            # If numpy doesn't recognize the dtype, it will raise
+            return np.issubdtype(dtype, np.character)
+        except Exception:  # noqa: BLE001 - NumPy raises varied errors for dtypes it cannot interpret
+            return False
+
     warnings_collector: IFAWarningCollector = IFAWarningCollector()
     suggestions_collector: IFASuggestionCollector = IFASuggestionCollector()
 

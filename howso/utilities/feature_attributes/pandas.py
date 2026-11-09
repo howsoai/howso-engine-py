@@ -357,15 +357,6 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         else:
             return None, None
 
-    @staticmethod
-    def _is_character_dtype(dtype) -> bool:
-        """Check if dtype is a subdtype of numpy.character."""
-        try:
-            # If numpy doesn't recognize the dtype, it will raise
-            return np.issubdtype(dtype, np.character)
-        except Exception:  # noqa: Deliberately broad
-            return False
-
     def _is_datetime_date_only(self, feature_name: str, max_rows: int = 1000) -> bool:
         """
         Return whether every sampled value of a datetime feature falls at midnight.
@@ -838,12 +829,14 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         if hasattr(column, 'dt') and getattr(column.dt, 'tz', None):
             # Include timezone offset in format
             dt_format += '%z'
-        elif column.dtype == object:
+        elif pd.api.types.is_string_dtype(column.dtype):
+            # The column holds strings or arbitrary Python objects, so the
+            # first non-null value determines how the format is inferred.
             first_non_null = self._get_first_non_null(feature_name)
             if isinstance(first_non_null, datetime.datetime):
-                # In the event of mixed timezone values the column dtype will
-                # be 'object'. In this case we check if the first non-null
-                # value has tzinfo and include the timezone in the format
+                # Mixed timezone values are stored as 'object'. Check if the
+                # first non-null value has tzinfo and include the timezone in
+                # the format
                 if first_non_null.tzinfo is not None:
                     dt_format += '%z'
             elif isinstance(first_non_null, str):

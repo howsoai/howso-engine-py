@@ -5,6 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import mongomock
+from packaging.version import Version
+import pandas as pd
 import pytest
 
 from howso.utilities.feature_attributes.tests.utils import TemporaryDirectoryIgnoreErrors
@@ -136,6 +138,9 @@ def spark_session():
         from pyspark.sql import SparkSession
     except ImportError:
         pytest.skip("pyspark not available")
+
+    if Version(pd.__version__).major >= 3:
+        pytest.skip("Spark does not support pandas 3 (apache/spark#59824)")
 
     import os
 

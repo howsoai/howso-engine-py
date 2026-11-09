@@ -12,6 +12,7 @@ import warnings
 from zoneinfo import ZoneInfo
 
 import numpy as np
+from packaging.version import Version
 import pandas as pd
 import pytest
 
@@ -22,6 +23,8 @@ from howso.utilities.feature_attributes.pandas import InferFeatureAttributesData
 from howso.utilities.feature_attributes.suggestions import IFASuggestionCollector
 from howso.utilities.features import FeatureType
 from howso.utilities.utilities import get_optimized_partition_size
+
+PANDAS_3 = Version(pd.__version__).major >= 3
 
 if platform.system().lower() == "windows":
     DT_MAX = "6053-01-24"
@@ -198,8 +201,9 @@ def test_integer_nominality(feature, nominality):
      {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
     (pd.DataFrame([[np.timedelta64(5, "D")]], columns=["a"]),
      {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
-    (pd.DataFrame([[np.timedelta64(5, "Y")]], columns=["a"]),
-     {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
+    pytest.param(lambda: pd.DataFrame([[np.timedelta64(5, "Y")]], columns=["a"]),
+                 {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"},
+                 marks=pytest.mark.skipif(PANDAS_3, reason="pandas 3 rejects ambiguous timedelta units")),
     (pd.DataFrame([[np.timedelta64(5000, "ns")]], columns=["a"]),
      {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
     (pd.DataFrame([[np.timedelta64(5000, "s")]], columns=["a"]),
@@ -207,8 +211,10 @@ def test_integer_nominality(feature, nominality):
     (pd.DataFrame([[np.timedelta64(60, "m")]], columns=["a"]),
      {"data_type": str(FeatureType.TIMEDELTA), "unit": "seconds"}),
 ])
-def test_get_feature_type(data, expected_type):
+def test_get_feature_type(data: Any, expected_type):
     """Test get_feature_type returns expected data types."""
+    if callable(data):
+        data = data()
     infer = InferFeatureAttributesDataFrame(data)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -216,6 +222,28 @@ def test_get_feature_type(data, expected_type):
     expected_feature_type = expected_type.pop("data_type")
     assert str(feature_type) == expected_feature_type
     assert original_type == expected_type
+
+
+ZONED = ["2020-10-12T10:12:00Z", "2020-10-12T10:10:10Z", "2020-12-12T12:12:12Z", "1920-10-11T11:11:11Z"]
+
+
+@pytest.mark.parametrize(("values", "dtype"), [
+    pytest.param(ZONED, object, id="object"),
+    pytest.param([None, *ZONED], object, id="object-leading-null"),
+    pytest.param(ZONED, "str", id="str"),
+    pytest.param(ZONED, "string", id="string"),
+])
+def test_zoned_iso_strings_keep_zone_format(values: list[str | None], dtype: Any) -> None:
+    """Zoned ISO-8601 strings infer a zone-aware format whatever string dtype holds them."""
+    df = pd.DataFrame({"when": pd.Series(values, dtype=dtype)})
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        features = infer_feature_attributes(df, tight_bounds=["when"], enable_suggestions=False)
+    when: dict[str, Any] = dict(features["when"])
+    assert when["type"] == "continuous"
+    assert when["date_time_format"] == "%Y-%m-%dT%H:%M:%SZ"
+    assert when["bounds"]["min"] == "1920-10-11T11:11:11Z"
+    assert when["bounds"]["max"] == "2020-12-12T12:12:12Z"
 
 
 @pytest.mark.parametrize("data, is_time, expected_format, provided_format", [
@@ -1137,9 +1165,12 @@ def test_formatted_date_time():
     # Verify formatted_date_time is set when a date_time_format is configured
     with warnings.catch_warnings():
         warnings.simplefilter("error")
+        warnings.filterwarnings(
+            "ignore", message=r"The following features were detected as possible datetimes", category=UserWarning)
         features = infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d"},
                                             default_time_zone="UTC", enable_suggestions=False)
         assert features["a"]["data_type"] != "formatted_date_time"
+        assert features["time"].get("data_type") == "string"
         # custom feature dates should be formatted_date_time
         assert features["custom"]["data_type"] == "formatted_date_time"
         # auto detected iso dates should be formatted_date_time
@@ -1176,7 +1207,7 @@ def test_default_time_zone():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         # Providing a default_time_zone should prevent the warning
-        data.drop("custom3", axis=1, inplace=True)  # Will raise an unrelated warning that we already tested for
+        data = data.drop(columns="custom3")  # Will raise an unrelated warning that we already tested for
         infer_feature_attributes(data, datetime_feature_formats={"custom": "%Y/%m/%d %H:%M",
                                                                  "custom2": "%Y/%m/%d %H:%M"}, default_time_zone="EST",
                                  enable_suggestions=False)
