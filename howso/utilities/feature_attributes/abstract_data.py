@@ -5,6 +5,7 @@ from contextlib import suppress
 import datetime
 from datetime import time, timedelta
 import decimal
+from functools import cache
 import inspect
 import logging
 from math import isnan
@@ -43,12 +44,26 @@ from howso.utilities.utilities import (
 
 logger = logging.getLogger(__name__)
 
-# Attempt to import howso.connectors, but don't require it unless an IFA-ADC class is instantiated
-# as it pulls in many potentially unused imports for most infer_feature_attributes use cases.
-try:
-    from howso.connectors import AbstractData
-except ImportError:
-    AbstractData = None
+
+@cache
+def _get_abstract_data_cls() -> type | None:
+    """
+    Lazily import and return howso-engine-connectors' ``AbstractData`` class.
+
+    howso.connectors pulls in many imports that are unused in many
+    `infer_feature_attributes` use cases, so it is now only imported when an
+    AbstractData class is actually used.
+
+    Returns
+    -------
+    type or None
+        The ``AbstractData`` class, or None if howso-engine-connectors is not installed.
+    """
+    try:
+        from howso.connectors import AbstractData
+    except ImportError:
+        return None
+    return AbstractData
 
 
 class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
@@ -63,7 +78,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         data : IFACompatibleADCProtocol
             The AbstractData class containing the features whose attributes will be inferred.
         """
-        if not AbstractData:
+        if _get_abstract_data_cls() is None:
             raise ImportError("The howso-engine-connectors package must installed to use "
                               "infer_feature_attributes with AbstractData classes.")
         self.data = data
@@ -83,9 +98,10 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         # For Spark compute types, multiprocessing is less-performant.
         # If we're working with the SparkDataFrameData ADC, unless the user
         # specifically sets `max_workers`, we want "sharding" disabled.
+        abstract_data_cls = _get_abstract_data_cls()
         if (
-            isinstance(AbstractData, type) and
-            isinstance(self.data, AbstractData) and
+            abstract_data_cls is not None and
+            isinstance(self.data, abstract_data_cls) and
             getattr(self.data, "_NATIVE_COMPUTE_TYPE", None) == "spark" and
             ("max_workers" not in kwargs or kwargs["max_workers"] is None)
         ):
