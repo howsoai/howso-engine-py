@@ -2423,3 +2423,24 @@ def test_feature_contains_nulls():
     df.loc[len(df) - 1, "class"] = None
     features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
     assert features["class"].get("bounds", {}).get("nulls_observed")
+
+
+def test_duplicate_index_matches_unique_index():
+    """Ensure a DataFrame with duplicate index labels infers the same attributes as with a unique index."""
+    df = pd.DataFrame(
+        {
+            "date": [None, "2020-01-01", "2020-02-03", "2021-05-06", "2022-07-08", "2023-09-10"],
+            "datetime": pd.to_datetime([
+                "2020-01-01 01:02:03", None, "2020-02-03 04:05:06",
+                "2021-05-06 07:08:09", "2022-07-08 10:11:12", "2023-09-10 13:14:15",
+            ]),
+            "value": [1.5, 2.5, None, 4.5, 5.5, 6.5],
+        },
+        index=[0, 0, 0, 1, 1, 1],
+    )
+    duplicate_features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)
+    unique_features = infer_feature_attributes(
+        df.reset_index(drop=True), default_time_zone="UTC", enable_suggestions=False
+    )
+    assert duplicate_features["date"]["date_time_format"] == "%Y-%m-%d"
+    assert dict(duplicate_features) == dict(unique_features)
