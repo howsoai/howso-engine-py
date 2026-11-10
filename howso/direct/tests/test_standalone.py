@@ -224,3 +224,32 @@ def test_garbage_collection_params_from_config(client: HowsoDirectClient, tmp_pa
         assert configured_client.get_garbage_collection_params()["min_gc_nodes_threshold"] == updated_threshold
     finally:
         client.set_garbage_collection_params(original_params)
+
+
+@pytest.mark.parametrize("method", ("create", "copy"))
+def test_runtime_matching_library_type_no_warning(client: HowsoDirectClient, method: str):
+    """A ``library_type`` matching the loaded library is accepted silently."""
+    import warnings
+    runtime = {"library_type": "mt" if client.is_multithreaded("") else "st"}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UnsupportedArgumentWarning)
+        trainee = client.create_trainee(runtime=runtime if method == "create" else None)
+        if method == "copy":
+            client.copy_trainee(trainee.id, runtime=runtime)
+
+
+@pytest.mark.parametrize("method", ("create", "copy"))
+def test_runtime_mismatched_library_type_warns(client: HowsoDirectClient, method: str):
+    """A ``library_type`` that differs from the loaded library warns."""
+    runtime = {"library_type": "st" if client.is_multithreaded("") else "mt"}
+    with pytest.warns(UnsupportedArgumentWarning, match="does not match the loaded Amalgam library"):
+        trainee = client.create_trainee(runtime=runtime if method == "create" else None)
+        if method == "copy":
+            client.copy_trainee(trainee.id, runtime=runtime)
+
+
+def test_runtime_unsupported_option_warns(client: HowsoDirectClient):
+    """Runtime options other than ``library_type`` warn."""
+    runtime = {"scaling": {"resources": {"cpu": {"maximum": 2000}}}}
+    with pytest.warns(UnsupportedArgumentWarning, match=r"\['scaling'\] are not implemented"):
+        client.create_trainee(runtime=runtime)

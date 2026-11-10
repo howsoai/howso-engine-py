@@ -13,7 +13,6 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pandas.core.dtypes.common import is_float_dtype
 from typing_extensions import override
 
 from howso.utilities.feature_attributes.base import (
@@ -1000,13 +999,13 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
                         )
                         min_v, max_v = None, None
 
-                if is_float_dtype(min_v):
+                if isinstance(min_v, np.floating):
                     min_v = float(min_v)
-                if is_float_dtype(max_v):
+                if isinstance(max_v, np.floating):
                     max_v = float(max_v)
-                if is_float_dtype(observed_min_value):
+                if isinstance(observed_min_value, np.floating):
                     observed_min_value = float(observed_min_value)
-                if is_float_dtype(observed_max_value):
+                if isinstance(observed_max_value, np.floating):
                     observed_max_value = float(observed_max_value)
 
                 output = {'allow_null': allow_null}

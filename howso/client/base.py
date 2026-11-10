@@ -723,27 +723,21 @@ class AbstractHowsoClient(ABC):
         # Make sure single table dicts are wrapped by SingleTableFeatureAttributes
         if (
             isinstance(feature_attributes, Mapping) and
-            not isinstance(feature_attributes, MultiTableFeatureAttributes)
+            not isinstance(feature_attributes, FeatureAttributesBase)
         ):
             feature_attributes = SingleTableFeatureAttributes(feature_attributes, {})
 
         # See if any features were inferred to have data that is unsupported by the OS.
         # Issue a warning and drop the feature before training, if so.
-        unsupported_features = []
-        if isinstance(feature_attributes, MultiTableFeatureAttributes):
-            for stfa in feature_attributes.values():
-                unsupported_features = [feat for feat in stfa.keys() if stfa.has_unsupported_data(feat)]   # pyright: ignore[reportAttributeAccessIssue]
-        elif isinstance(feature_attributes, SingleTableFeatureAttributes):
-            unsupported_features = [feat for feat in feature_attributes.keys()
-                                    if feature_attributes.has_unsupported_data(feat)]
+        unsupported_features = self._get_unsupported_features(feature_attributes)
         if not isinstance(cases, list):
             for feature in unsupported_features:
                 warnings.warn(
                     f"Ignoring feature {feature} as it contains values that are too "
                     "large or small for your operating system. Please evaluate the "
                     "bounds for this feature.")
-                if isinstance(cases, DataFrame):
-                    cases.drop(feature, axis=1, inplace=True)
+            if isinstance(cases, DataFrame):
+                cases, features = self._drop_unsupported_features(cases, features, unsupported_features)
 
         util.validate_list_shape(features, 1, "features", "str")
 
@@ -797,14 +791,13 @@ class AbstractHowsoClient(ABC):
 
             while True:
                 if isinstance(batch, DataFrame):
+                    # Remove the unsupported features from each batch before validating it.
+                    batch, features = self._drop_unsupported_features(batch, features, unsupported_features)
                     # Validate each batch of cases separately.
                     self._train_validate_cases(batch, feature_attributes, validate)
                     # Come up with the feature list, if this is the first batch we've ever seen.
                     if features is None:
                         features = internals.get_features_from_data(batch)
-                    # If there are unsupported features, they need to be dropped in each batch.
-                    for feature in unsupported_features:
-                        batch.drop(features, axis=1, inplace=True)
                     # Turn the batch into data primitives to pass off to the engine.
                     batch_cases = serialize_cases(batch, features, feature_attributes, warn=True,
                                                   tokenizer=self._tokenizer) or []  # pyright: ignore[reportAttributeAccessIssue]
@@ -861,6 +854,69 @@ class AbstractHowsoClient(ABC):
         self._auto_persist_trainee(trainee_id)
 
         return status
+
+    @staticmethod
+    def _get_unsupported_features(feature_attributes: FeatureAttributesBase) -> list[str]:
+        """
+        Get the names of features that contain data unsupported by the Engine.
+
+        Parameters
+        ----------
+        feature_attributes : FeatureAttributesBase
+            Single table feature attributes, or multi-table feature attributes
+            whose tables are each checked.
+
+        Returns
+        -------
+        list of str
+            The unsupported feature names, without duplicates, in the order
+            first seen.
+        """
+        if isinstance(feature_attributes, MultiTableFeatureAttributes):
+            tables = list(feature_attributes.values())
+        else:
+            tables = [feature_attributes]
+        unsupported_features: list[str] = []
+        for table in tables:
+            if isinstance(table, SingleTableFeatureAttributes):
+                unsupported_features.extend(feat for feat in table.keys() if table.has_unsupported_data(feat))
+        return list(dict.fromkeys(unsupported_features))
+
+    @staticmethod
+    def _drop_unsupported_features(
+        cases: DataFrame,
+        features: Collection[str] | None,
+        unsupported_features: Collection[str],
+    ) -> tuple[DataFrame, Collection[str] | None]:
+        """
+        Remove unsupported features from cases to train and from their feature list.
+
+        `cases` itself is not modified. Unsupported features absent from
+        `cases` or `features` are ignored.
+
+        Parameters
+        ----------
+        cases : DataFrame
+            The cases to train.
+        features : Collection of str, optional
+            The features to train, if given explicitly.
+        unsupported_features : Collection of str
+            The names of the features to remove.
+
+        Returns
+        -------
+        DataFrame
+            The cases without the unsupported features.
+        Collection of str or None
+            The features without the unsupported features, in their original
+            order, or None if `features` is None.
+        """
+        if not unsupported_features:
+            return cases, features
+        cases = cases.drop(columns=unsupported_features, errors="ignore")
+        if features is not None:
+            features = [feature for feature in features if feature not in unsupported_features]
+        return cases, features
 
     def _train_validate_cases(self, cases: TabularData2D, feature_attributes: FeatureAttributesBase, validate: bool):
         """
@@ -3190,9 +3246,13 @@ class AbstractHowsoClient(ABC):
         max_series_lengths : list of int, optional
             maximum size a series is allowed to be.  Default is
             3 * model_size, a 0 or less is no limit. If forecasting
-            with ``continue_series``, this defines the maximum length of the
-            forecast. Must provide either one for all series, or exactly
-            one per series.
+            with ``continue_series``, this limit includes the continuation
+            anchor (the last row of ``series_context_values`` or the last
+            trained row of the series selected by ``series_id_values``),
+            which is not returned. To allow up to ``H`` returned forecast
+            rows, use ``H + 1``; other stopping conditions may end the
+            forecast earlier. Must provide either one for all series, or
+            exactly one per series.
         mutate_schema_features : iterable of str, optional
             List of semi-structured features whose values will be mutated,
             possibly changing their schema in generative reacts. Ignored in

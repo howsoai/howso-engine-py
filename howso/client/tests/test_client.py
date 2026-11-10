@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from copy import deepcopy
 import importlib.metadata
 import json
@@ -6,6 +7,7 @@ from pathlib import Path
 import platform
 from pprint import pprint
 import sys
+from typing import Any, cast
 import uuid
 import warnings
 
@@ -15,6 +17,7 @@ import pytest
 
 import howso
 from howso.client import HowsoClient
+from howso.client.base import AbstractHowsoClient
 from howso.client.client import _check_isfile  # type: ignore reportPrivateUsage
 from howso.client.client import (
     get_configuration_path,
@@ -31,6 +34,13 @@ from howso.client.schemas import Reaction, GroupReaction
 from howso.direct import HowsoDirectClient
 from howso.engine import Trainee
 from howso.utilities import infer_feature_attributes
+from howso.utilities.feature_attributes.base import (
+    FeatureAttributesBase,
+    FLOAT_MAX,
+    FLOAT_MIN,
+    MultiTableFeatureAttributes,
+    SingleTableFeatureAttributes,
+)
 from howso.utilities.testing import (
     get_configurationless_test_client,
     get_test_options,
@@ -1538,3 +1548,84 @@ class TestBaseClient:
         assert reaction["action"].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
         inf_cases = reaction["details"]["influential_cases"]
         assert inf_cases[0].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
+
+
+def _single_table(columns: list[str], unsupported: list[str]) -> SingleTableFeatureAttributes:
+    """Build single table feature attributes with the given unsupported features."""
+    attributes: dict[str, Any] = {name: {"type": "continuous"} for name in columns}
+    return SingleTableFeatureAttributes(attributes, {}, unsupported=unsupported)
+
+
+@pytest.mark.parametrize(("feature_attributes", "expected"), [
+    (
+        MultiTableFeatureAttributes({  # pyright: ignore[reportArgumentType]
+            "t1": _single_table(["a", "CLOSE"], ["CLOSE"]),
+            "t2": _single_table(["b"], []),
+        }, {}),
+        ["CLOSE"],
+    ),
+    (
+        MultiTableFeatureAttributes({  # pyright: ignore[reportArgumentType]
+            "t1": _single_table(["a", "CLOSE"], ["CLOSE"]),
+            "t2": _single_table(["CLOSE", "VOLUME"], ["CLOSE", "VOLUME"]),
+        }, {}),
+        ["CLOSE", "VOLUME"],
+    ),
+    (_single_table(["a", "CLOSE"], ["CLOSE"]), ["CLOSE"]),
+], ids=["multi-table-first-only", "multi-table-shared-name", "single-table"])
+def test_get_unsupported_features(feature_attributes: FeatureAttributesBase, expected: list[str]) -> None:
+    """Test that unsupported features are collected from every table, without duplicates."""
+    assert AbstractHowsoClient._get_unsupported_features(feature_attributes) == expected
+
+
+def _batches(
+    df: pd.DataFrame, yielded: list[pd.DataFrame], size: int = 10
+) -> Generator[pd.DataFrame, int, None]:
+    """Yield `df` in slices, honoring batch sizes sent by the caller and recording each slice in `yielded`."""
+    start = 0
+    while start < len(df):
+        batch = df.iloc[start:start + size].copy()
+        yielded.append(batch)
+        start += len(batch)
+        size = (yield batch) or size
+
+
+@pytest.mark.parametrize("as_generator", [False, True], ids=["dataframe", "generator"])
+@pytest.mark.parametrize("variant", ["all-columns", "prefiltered", "explicit-features"])
+def test_train_drops_unsupported_feature(as_generator: bool, variant: str) -> None:
+    """Test that training drops only the unsupported feature and leaves the caller's data unchanged."""
+    df = pd.read_csv(iris_file_path.with_name("mini_stock_data.csv"))
+    df.loc[0, "CLOSE"] = FLOAT_MIN - .00001
+    df.loc[1, "CLOSE"] = FLOAT_MAX + .00001
+    features = infer_feature_attributes(df, tight_bounds=["CLOSE"], enable_suggestions=False)
+    assert isinstance(features, SingleTableFeatureAttributes)
+    assert features.has_unsupported_data("CLOSE")
+
+    train_features = list(df.columns) if variant == "explicit-features" else None
+    if variant == "prefiltered":
+        df = df.drop(columns="CLOSE")
+    original = df.copy()
+    yielded: list[pd.DataFrame] = []
+
+    trainee = Trainee(features=features)
+    assert isinstance(trainee.client, AbstractHowsoClient)
+    try:
+        # The engine does not return the inferred list of unsupported features, so
+        # cache the inferred attributes, which carry it, as `train` reads them.
+        cached = trainee.client.trainee_cache.get_item(trainee.id)
+        cached["feature_attributes"] = cast("dict[str, dict[str, Any]]", features)
+        with pytest.warns(UserWarning, match="Ignoring feature CLOSE"):
+            trainee.train(_batches(df, yielded) if as_generator else df, features=train_features)
+        cases = trainee.get_cases()
+    finally:
+        trainee.delete()
+
+    pd.testing.assert_frame_equal(df, original)
+    for batch in yielded:
+        pd.testing.assert_frame_equal(batch, original.loc[batch.index])
+    assert len(cases) == len(df)
+    for feature in df.columns:
+        if feature != "CLOSE":
+            assert feature in cases.columns
+            assert not cases[feature].isna().all()
+    assert "CLOSE" not in cases.columns or cases["CLOSE"].isna().all()

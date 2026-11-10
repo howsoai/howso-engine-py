@@ -5,9 +5,9 @@ set -eux
 install_deps() {
   python --version
   # Connectors needed for some unit tests
-  python -m pip install "howso-engine-connectors[dev]~=4.0" --user
+  python -m pip install "howso-engine-connectors[dev]~=4.0"
   python -m pip install --no-deps -e .
-  python -m pip install -r requirements-${1}-dev.txt --no-deps --user
+  python -m pip install -r pylock.toml
 }
 
 # Takes the cli params, and runs them, defaulting to 'help()'
