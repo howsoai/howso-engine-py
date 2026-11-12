@@ -419,6 +419,15 @@ class FeatureAttributes(TypedDict):
     series, this feature will be used as the id for each time series generation.
     """
 
+    ignore_null_signal: NotRequired[bool]
+    """
+    Whether to ignore any detectable signal from nulls for this feature.
+
+    When true, the null-null deviation is not shrunk as the predictability of nulls
+    exceeds their probability mass, and is instead set to the MAD (or the known-null
+    deviation for nominal features). Defaults to false.
+    """
+
     locale: NotRequired[str]
     """The date time format locale. If unspecified, uses platform default locale."""
 
