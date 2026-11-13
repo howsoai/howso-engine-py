@@ -40,14 +40,8 @@ from howso.utilities.utilities import (
 
 logger = logging.getLogger(__name__)
 
-# Import SQLAlchemy only if it's available. Not all users of this package will have or need
-# this installed.
-try:
-    import sqlalchemy as db
-    from sqlalchemy import func, inspect, MetaData
-    from sqlalchemy.orm import sessionmaker
-except ImportError:
-    db = None
+# NOTE: SQLAlchemy is imported lazily within the functions/methods that need it. Not all users
+# of this package will have or need it installed, and importing it is relatively expensive.
 
 COLUMNS = 'COLUMNS'
 COLUMN_TYPE_PATTERN = re.compile(
@@ -267,10 +261,12 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         parent_datastore : SQLRelationalDatastoreProtocol
             The datastore to which this SQL table belongs.
         """
-        if not db:
+        try:
+            import sqlalchemy  # noqa: F401
+        except ImportError as e:
             raise ImportError('Must have SQLAlchemy installed to instantiate '
                               'FeatureAttributesSQLTable. See synthesizer-data-services/'
-                              'requirements.in for versioning.')
+                              'requirements.in for versioning.') from e
         warnings.warn("Direct SQL datastore support for infer_feature_attributes is deprecated "
                       "and will be removed in a future release. "
                       "Please contact support@howso.com for information about data connectors.",
@@ -394,6 +390,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
 
         # Inspect the information schema to see if the given non-pk column has
         # a unique constraint by itself.
+        from sqlalchemy import inspect
+
         inspector = inspect(self.datastore.engine)
         try:
             uniques = inspector.get_unique_constraints(self.table_name.table,
@@ -439,6 +437,8 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         Smallness and largeness is determined by the SQLAlchemy functions
         `min()` and `max()`.
         """
+        from sqlalchemy import func
+
         with session_scope(self.session_cls) as session:
             results = session.query(
                 func.min(self.data.c[feature_name]).label('min_value'),
@@ -454,30 +454,27 @@ class InferFeatureAttributesSQLTable(InferFeatureAttributesBase):
         If multiple values have the same mode all of them will be returned, as
         long as the count is a value greater than 1.
         """
-        result = None
+        from sqlalchemy import and_, func
+
         with session_scope(self.session_cls) as session:
-            if db:
-                subquery = session.query(
-                    func.count(self.data.c[feature_name]).label('count')
-                ).group_by(self.data.c[feature_name]).subquery('all_counts')
-                max_count = session.query(
-                    func.max(subquery.c.count).label('max_count')).scalar_subquery()
-                result = (
-                    session.query(
-                        self.data.c[feature_name],
-                        func.count(self.data.c[feature_name]).label('num')
-                    ).group_by(
-                        self.data.c[feature_name]
-                    ).having(
-                        db.sql.and_(
-                            func.count(self.data.c[feature_name]) > 1,
-                            func.count(self.data.c[feature_name]) >= max_count
-                        )
+            subquery = session.query(
+                func.count(self.data.c[feature_name]).label('count')
+            ).group_by(self.data.c[feature_name]).subquery('all_counts')
+            max_count = session.query(
+                func.max(subquery.c.count).label('max_count')).scalar_subquery()
+            result = (
+                session.query(
+                    self.data.c[feature_name],
+                    func.count(self.data.c[feature_name]).label('num')
+                ).group_by(
+                    self.data.c[feature_name]
+                ).having(
+                    and_(
+                        func.count(self.data.c[feature_name]) > 1,
+                        func.count(self.data.c[feature_name]) >= max_count
                     )
                 )
-
-        if result is None:
-            return []
+            )
 
         # value, count
         return [(r[0], r[1]) for r in result]
@@ -1125,6 +1122,9 @@ class InferFeatureAttributesSQLDatastore:
     def __init__(self, datastore: SQLRelationalDatastoreProtocol,
                  table_names: Iterable[TableNameProtocol], **kwargs):
         """Instantiate this InferFeatureAttributesSQLDatastore object."""
+        from sqlalchemy import MetaData
+        from sqlalchemy.orm import sessionmaker
+
         # Save kwargs for get_parameters
         self.params = kwargs
 
@@ -1138,11 +1138,13 @@ class InferFeatureAttributesSQLDatastore:
 
     def __call__(self, **kwargs) -> MultiTableFeatureAttributes:
         """Process feature attributes for all tables in the datastore, returned as one object."""
+        from sqlalchemy import Table
+
         # Infer feature attributes for each table in the datastore
         feature_attributes = {}
 
         for table_name in self.table_names:
-            data = db.Table(
+            data = Table(
                 table_name.table, self._metadata, schema=table_name.schema,
                 autoload_with=self.datastore.engine
             )

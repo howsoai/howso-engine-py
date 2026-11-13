@@ -379,10 +379,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return True
 
     def _get_first_non_null(self, feature_name: str) -> t.Any | None:
-        index = self.data[feature_name].first_valid_index()
-        if index is None:
+        # Positional lookup: a label lookup returns a Series when the index has duplicates.
+        column = self.data[feature_name]
+        non_null_positions = np.flatnonzero(column.notna().to_numpy())
+        if len(non_null_positions) == 0:
             return None
-        return self.data[feature_name][index]
+        return column.iloc[non_null_positions[0]]
 
     def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
         """
