@@ -5,7 +5,7 @@ import decimal
 from enum import Enum
 from functools import partial
 import locale
-from typing import Any, cast
+from typing import Any, cast, TypeAlias
 import warnings
 from zoneinfo import ZoneInfo
 
@@ -16,7 +16,7 @@ from pandas.core.dtypes.common import (
     is_timedelta64_dtype,
 )
 
-from howso.utilities.internals import deserialize_to_dataframe, IgnoreWarnings, to_pandas_datetime_format
+from howso.utilities.internals import IgnoreWarnings, to_pandas_datetime_format
 from howso.utilities.tokenizing import (
     HowsoTokenizer,
     TokenizerProtocol,
@@ -38,6 +38,8 @@ __all__ = [
     "format_dataframe",
     "serialize_cases",
 ]
+
+ColumnArray: TypeAlias = np.ndarray | pd.api.extensions.ExtensionArray
 
 
 class FeatureType(Enum):
@@ -182,8 +184,10 @@ class FeatureSerializer:
     @classmethod
     def deserialize(
         cls,
-        data: Iterable[Iterable[Any] | Mapping[str, Any]],
-        columns: Sequence[str] | None = None,
+        data: list[list[Any]],
+        columns: Sequence[str],
+        index: pd.Index | None = None,
+        *,
         features: Mapping[str, Any] | None = None,
         tokenizer: TokenizerProtocol | None = None,
     ) -> pd.DataFrame:
@@ -218,10 +222,47 @@ class FeatureSerializer:
         pandas.DataFrame
             The deserialized data.
         """
-        df = deserialize_to_dataframe(data, columns)
-        if features is not None:
-            df = cls.format_dataframe(df, features, tokenizer=tokenizer)
+        data = [] if data is None else data  # pyright: ignore[reportUnnecessaryComparison]
+        arrays = cls._convert_columns(data, columns, features=features, tokenizer=tokenizer)
+
+        # One shared index so the constructor doesn't need to align the Series
+        index = pd.RangeIndex(len(data)) if index is None else index
+        # Key columns by position to allow duplicate column names, constructor will consolidate same-dtype columns
+        series = {position: pd.Series(array, index=index, copy=False) for position, array in enumerate(arrays)}
+        del arrays
+        df = pd.DataFrame(series, index=index)
+        del series
+        df.columns = pd.Index(columns)
         return df
+
+    @classmethod
+    def _convert_columns(
+        cls,
+        rows: list[list[Any]],
+        columns: Sequence[str],
+        *,
+        features: Mapping[str, Any] | None = None,
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> list[ColumnArray]:
+        """Convert and consume each column of `rows` into an array of its final dtype, in column order."""
+        n_cols = len(columns)
+        for row in rows:
+            if len(row) != n_cols:
+                raise ValueError(
+                    f"Unable to deserialize data. Every row must have {n_cols} values, "
+                    f"encountered row with {len(row)}."
+                )
+
+        arrays: list[ColumnArray | None] = [None] * n_cols
+
+        # Work from the last column back: `list.pop` takes each value out of its row, so the
+        # column list holds the only reference to each value and they are freed once converted.
+        for position in reversed(range(n_cols)):
+            values = [row.pop() for row in rows]
+            arrays[position] = cls._to_array(values, columns[position], features, tokenizer)
+            del values
+        rows.clear()
+        return cast(list[ColumnArray], arrays)
 
     @classmethod
     def format_dataframe(
