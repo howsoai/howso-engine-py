@@ -470,7 +470,7 @@ class FeatureAttributes(TypedDict):
     """
 
     observational_error: NotRequired[float]
-    """Specifies the observational mean absolute error for this feature. Use when the error value is already known."""
+    """Specifies the observational mean absolute error for this continuous feature. Use when the error value is already known."""
 
     original_format: NotRequired[dict[str, Any]]
     """
