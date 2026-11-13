@@ -86,6 +86,9 @@ class AbstractHowsoClient(ABC):
     configuration: "HowsoConfiguration"  # pyright: ignore[reportMissingTypeArgument]  # noqa: UP037
     """The client configuration options."""
 
+    _tokenizer: util.TokenizerProtocol
+    """Tokenizer to use with tokenized string features."""
+
     ERROR_MESSAGES: Mapping[str, str] = MappingProxyType({
         "missing_session": "There is currently no active session. Begin a new session to continue.",
         "train_series_generator": (
@@ -765,7 +768,7 @@ class AbstractHowsoClient(ABC):
             if features is None:
                 features = internals.get_features_from_data(cases)
             serialized_cases = serialize_cases(cases, features, feature_attributes, warn=True,
-                                               tokenizer=self._tokenizer) or []  # pyright: ignore[reportAttributeAccessIssue]
+                                               tokenizer=self._tokenizer) or []
             gen = internals.batch_lists(serialized_cases, batch_scaler.batch_size)
         else:
             gen = cases
@@ -800,7 +803,7 @@ class AbstractHowsoClient(ABC):
                         features = internals.get_features_from_data(batch)
                     # Turn the batch into data primitives to pass off to the engine.
                     batch_cases = serialize_cases(batch, features, feature_attributes, warn=True,
-                                                  tokenizer=self._tokenizer) or []  # pyright: ignore[reportAttributeAccessIssue]
+                                                  tokenizer=self._tokenizer) or []
                 else:
                     # We've already validated and serialized the data, so use this batch as-is.
                     batch_cases = batch
@@ -1340,7 +1343,7 @@ class AbstractHowsoClient(ABC):
             if features is None:
                 features = internals.get_features_from_data(feature_values, data_parameter="feature_values")
             serialized_feature_values = serialize_cases(feature_values, features, feature_attributes,
-                                                        tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+                                                        tokenizer=self._tokenizer)
             if serialized_feature_values:
                 # Only a single case should be provided
                 serialized_feature_values = serialized_feature_values[0]
@@ -1504,7 +1507,7 @@ class AbstractHowsoClient(ABC):
 
         # Preprocess contexts
         serialized_contexts = serialize_cases(contexts, context_features, feature_attributes,
-                                              tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+                                              tokenizer=self._tokenizer)
 
         if self.configuration.verbose:
             print(f"Appending to series store for Trainee with id: {trainee_id}, and series: {series}")
@@ -2661,7 +2664,7 @@ class AbstractHowsoClient(ABC):
                 data_parameter="post_process_values",
                 features_parameter="post_process_features")
         post_process_values = serialize_cases(post_process_values, post_process_features, feature_attributes,
-                                              tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+                                              tokenizer=self._tokenizer)
 
         if post_process_values is not None and contexts is not None:  # noqa: SIM102
             if (len(contexts) > 1 and len(post_process_values) > 1 and
@@ -2835,17 +2838,17 @@ class AbstractHowsoClient(ABC):
             if isinstance(progress_callback, Callable):
                 progress_callback(progress, response)
 
-        response = internals.format_react_response(response)
+        action_values = response.pop("action_values", [])
 
         if desired_conviction is not None:
             # If the number of cases generated is less then requested, raise
             # warning (only for generative reacts)
             internals.insufficient_generation_check(
-                num_cases_to_generate, len(response["action"]),
+                num_cases_to_generate, len(action_values),
                 suppress_warning=suppress_warning
             )
 
-        return Reaction(response["action"], response["details"], feature_attributes, tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+        return Reaction(action_values, response, feature_attributes, tokenizer=self._tokenizer)
 
     def _react(self, trainee_id: str, params: dict) -> tuple[dict, int, int]:
         """
@@ -2868,6 +2871,8 @@ class AbstractHowsoClient(ABC):
             The response payload size.
         """
         ret, in_size, out_size = self.execute_sized(trainee_id, "react", params)
+
+        ret = util.replace_doublemax_with_infinity(ret)
 
         # Action values and features should always be defined
         if not ret.get("action_values"):
@@ -2951,7 +2956,7 @@ class AbstractHowsoClient(ABC):
                 data_parameter="contexts",
                 features_parameter="context_features")
         serialized_contexts = serialize_cases(context_values, context_features, feature_attributes,
-                                              tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+                                              tokenizer=self._tokenizer)
 
         # Preprocess action values
         if action_values is not None and action_features is None:
@@ -2961,7 +2966,7 @@ class AbstractHowsoClient(ABC):
                 data_parameter="actions",
                 features_parameter="action_features")
         serialized_actions = serialize_cases(action_values, action_features, feature_attributes,
-                                             tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+                                             tokenizer=self._tokenizer)
 
         return action_features, serialized_actions, context_features, serialized_contexts
 
@@ -3400,7 +3405,7 @@ class AbstractHowsoClient(ABC):
                         features_parameter="series_context_features")
                 serialized_series_context_values.append(
                     serialize_cases(series, series_context_features, feature_attributes,
-                                    tokenizer=self._tokenizer))  # pyright: ignore[reportAttributeAccessIssue]
+                                    tokenizer=self._tokenizer))
 
         if new_case_threshold not in [None, "min", "max", "most_similar"]:
             raise ValueError(
@@ -3602,7 +3607,7 @@ class AbstractHowsoClient(ABC):
             )
 
         series_df = util.build_react_series_df(response, series_index=series_index)
-        return Reaction(series_df, response.get("details", {}), feature_attributes, tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+        return Reaction(series_df, response.get("details", {}), feature_attributes, tokenizer=self._tokenizer)
 
     def _react_series(self, trainee_id: str, params: dict):
         """
@@ -3818,7 +3823,7 @@ class AbstractHowsoClient(ABC):
                         features_parameter="series_context_features")
                 serialized_series_context_values.append(
                     serialize_cases(series, series_context_features, feature_attributes,
-                                    tokenizer=self._tokenizer))  # pyright: ignore[reportAttributeAccessIssue]
+                                    tokenizer=self._tokenizer))
 
         if series_id_values is not None and series_id_features is None:
             series_id_features = internals.get_features_from_data(
@@ -3826,7 +3831,7 @@ class AbstractHowsoClient(ABC):
                 data_parameter="series_id_values",
                 features_parameter="series_id_features")
         serialized_series_id_values = serialize_cases(series_id_values, series_id_features, feature_attributes,
-                                                      tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+                                                      tokenizer=self._tokenizer)
 
         react_stationary_params = {
             "action_features": action_features,
@@ -3874,10 +3879,10 @@ class AbstractHowsoClient(ABC):
             if isinstance(progress_callback, Callable):
                 progress_callback(progress, response)
 
-        response = response or dict()
         self._auto_persist_trainee(trainee_id)
-        response = internals.format_react_response(response)
-        return Reaction(response["action"], response["details"], feature_attributes, tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+
+        action_values = response.pop("action_values", [])
+        return Reaction(action_values, response, feature_attributes, tokenizer=self._tokenizer)
 
     def _react_series_stationary(self, trainee_id: str, params: dict):
         """
@@ -4697,7 +4702,7 @@ class AbstractHowsoClient(ABC):
                 if features is None:
                     features = internals.get_features_from_data(group, data_parameter="new_cases")
                 serialized_cases.append(serialize_cases(group, features, feature_attributes,
-                                                        tokenizer=self._tokenizer))  # pyright: ignore[reportAttributeAccessIssue]
+                                                        tokenizer=self._tokenizer))
 
             if (
                 features is None
@@ -4738,7 +4743,7 @@ class AbstractHowsoClient(ABC):
         })
         if result is None:
             result = dict()
-        return GroupReaction(result, feature_attributes, tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+        return GroupReaction(result, feature_attributes, tokenizer=self._tokenizer)
 
     def evaluate(
         self,
@@ -6079,12 +6084,12 @@ class AbstractHowsoClient(ABC):
             if features is None:
                 features = internals.get_features_from_data(
                     from_values, data_parameter="from_values")
-            from_values = serialize_cases(from_values, features, feature_attributes, tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+            from_values = serialize_cases(from_values, features, feature_attributes, tokenizer=self._tokenizer)
         if to_values is not None:
             if features is None:
                 features = internals.get_features_from_data(
                     to_values, data_parameter="to_values")
-            to_values = serialize_cases(to_values, features, feature_attributes, tokenizer=self._tokenizer)  # pyright: ignore[reportAttributeAccessIssue]
+            to_values = serialize_cases(to_values, features, feature_attributes, tokenizer=self._tokenizer)
 
         if self.configuration.verbose:
             print(f"Getting pairwise distances for Trainee with id: {trainee_id}")
