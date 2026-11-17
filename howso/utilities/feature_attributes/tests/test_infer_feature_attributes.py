@@ -2444,3 +2444,125 @@ def test_duplicate_index_matches_unique_index():
     )
     assert duplicate_features["date"]["date_time_format"] == "%Y-%m-%d"
     assert dict(duplicate_features) == dict(unique_features)
+
+
+@pytest.mark.parametrize("override_intent", [
+    {"json": ["barretts_privateers", "northwest_passage"]},
+    {"barretts_privateers": "json", "northwest_passage": "json"},
+    {"json": ["barretts_privateers"], "northwest_passage": "json"},
+])
+def test_override_intent_edit_distance_strings(override_intent):
+    """Plain strings with the "json" intent are serialized as JSON and compared by edit distance."""
+    df = pd.DataFrame({
+        "barretts_privateers": ["oh", "the", "year", "was", "1778", "how", "I", "wish", "I", "was"],
+        "northwest_passage": ["for", "just", "one", "time", "I", "would", "take", "the", "northwest", "passage"],
+        "birth_date": [f"2020-01-0{i}" for i in range(1, 10)] + ["2021-01-01"],
+    })
+    features = infer_feature_attributes(df, override_intent=override_intent)
+    for feature in ["barretts_privateers", "northwest_passage"]:
+        assert features[feature]["type"] == "continuous"
+        assert features[feature]["data_type"] == "json"
+        assert features[feature]["original_type"] == {"data_type": "container"}
+        assert features[feature]["nominal_strings"] is False
+    assert features["birth_date"]["data_type"] == "formatted_date_time"
+
+    features = infer_feature_attributes(df, override_intent={"birth_date": "json"})
+    assert features["birth_date"]["data_type"] == "json"
+    assert features["birth_date"]["original_type"] == {"data_type": "container"}
+    assert "date_time_format" not in features["birth_date"]
+
+
+@pytest.mark.parametrize(("data", "intent", "expected"), [
+    (["true", "false"] * 5, "boolean", {"type": "nominal", "data_type": "boolean"}),
+    ([str(i) for i in range(10)], "number", {"type": "continuous", "data_type": "number"}),
+    (list(range(10)), "string", {"type": "nominal", "data_type": "string"}),
+    ([f"10:0{i}" for i in range(10)], "time", {"type": "continuous", "data_type": "formatted_time",
+                                              "date_time_format": "%H:%M"}),
+    ([f"2020-01-0{i}" for i in range(1, 10)], "date", {"type": "continuous", "data_type": "formatted_date_time"}),
+    (["a b c", "d e f"] * 5, "tokenizable_string", {"type": "continuous", "data_type": "json",
+                                                    "original_type": {"data_type": "tokenizable_string"}}),
+    ([f"(+ 1 {i})" for i in range(10)], "amalgam", {"type": "continuous", "data_type": "amalgam"}),
+    ([f"a: {i}" for i in range(10)], "yaml", {"type": "continuous", "data_type": "yaml"}),
+    ([f'{{"a": {i}}}' for i in range(10)], "json", {"type": "continuous", "data_type": "json"}),
+    ([[i, i + 1] for i in range(10)], "json", {"type": "continuous", "data_type": "json",
+                                               "original_type": {"data_type": "container"}}),
+])
+def test_override_intent(data, intent, expected):
+    """Each intent sets the attributes it describes."""
+    df = pd.DataFrame({"feature": data})
+    features = infer_feature_attributes(df, override_intent={"feature": intent})
+    assert expected.items() <= features["feature"].items()
+    if intent == "json" and isinstance(data[0], str):
+        assert "nominal_strings" not in features["feature"]
+
+
+def test_override_intent_respects_types():
+    """A type given in `types` is kept for a feature with an intent."""
+    df = pd.DataFrame({"feature": ["a", "b", "c", "d", "e"] * 2})
+    features = infer_feature_attributes(df, override_intent={"feature": "json"}, types={"feature": "nominal"})
+    assert features["feature"]["type"] == "nominal"
+    assert features["feature"]["data_type"] == "json"
+
+
+@pytest.mark.parametrize(("intent", "feature_type"), [
+    ("boolean", "nominal"),
+    ("string", "nominal"),
+    ("tokenizable_string", "continuous"),
+    ("number", "nominal"),
+    ("json", "continuous"),
+])
+def test_override_intent_compatible_types(intent, feature_type):
+    """A type in `types` that the intent allows is accepted, in either form of `types`."""
+    df = pd.DataFrame({"feature": ["1", "0"] * 5})
+    for types in [{"feature": feature_type}, {feature_type: ["feature"]}]:
+        features = infer_feature_attributes(df, override_intent={"feature": intent}, types=types)
+        assert features["feature"]["type"] == feature_type
+
+
+@pytest.mark.parametrize(("dates", "warns"), [
+    (pd.date_range("2020-01-01 10:30", periods=10, freq="h"), True),
+    (pd.date_range("2020-01-01", periods=10, freq="D"), False),
+])
+def test_override_intent_date_drops_time_warning(dates, warns):
+    """The "date" intent on a column of datetimes warns that their times are dropped."""
+    df = pd.DataFrame({"feature": dates})
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        features = infer_feature_attributes(df, override_intent={"feature": "date"})
+    assert features["feature"]["date_time_format"] == "%Y-%m-%d"
+    assert any('"date" intent' in str(w.message) for w in caught) == warns
+
+
+def test_override_intent_uses_datetime_format():
+    """A date/time intent parses the feature with its format in `datetime_feature_formats`."""
+    df = pd.DataFrame({"feature": [f"01/0{i}/2020" for i in range(1, 10)]})
+    features = infer_feature_attributes(df, override_intent={"feature": "date"},
+                                        datetime_feature_formats={"feature": "%m/%d/%Y"})
+    assert features["feature"]["data_type"] == "formatted_date_time"
+    assert features["feature"]["date_time_format"] == "%m/%d/%Y"
+    with pytest.raises(ValueError, match="not ISO 8601"):
+        infer_feature_attributes(df, override_intent={"feature": "date"})
+
+
+@pytest.mark.parametrize(("kwargs", "error", "match"), [
+    ({"override_intent": {"missing": "json"}}, ValueError, "not in the data"),
+    ({"override_intent": {"jsn": ["feature"]}}, ValueError, "unrecognized intent"),
+    ({"override_intent": {"feature": "json", "string": ["feature"]}}, ValueError, "more than one intent"),
+    ({"override_intent": ["feature"]}, TypeError, "must be a dict"),
+    ({"override_intent": {"feature": 1}}, TypeError, "must be an intent descriptor"),
+    ({"override_intent": {"feature": "string"}, "ordinal_feature_values": {"feature": ["a", "b"]}},
+     ValueError, "ordinal_feature_values"),
+    ({"override_intent": {"feature": "json"}, "datetime_feature_formats": {"feature": "%Y"}},
+     ValueError, "gives it a date/time format"),
+    ({"override_intent": {"feature": "date"}, "datetime_feature_formats": {"feature": False}},
+     ValueError, "not a date/time"),
+    ({"override_intent": {"feature": "json"}, "types": {"feature": "ordinal"}}, ValueError, "must be"),
+    ({"override_intent": {"feature": "boolean"}, "types": {"continuous": ["feature"]}}, ValueError, "must be"),
+    ({"override_intent": {"string": ["feature"]}, "types": {"feature": "continuous"}}, ValueError, "must be"),
+    ({"override_intent": {"feature": "tokenizable_string"}, "types": {"feature": "nominal"}}, ValueError, "must be"),
+])
+def test_override_intent_invalid(kwargs, error, match):
+    """Invalid `override_intent` values and conflicts with other parameters raise errors."""
+    df = pd.DataFrame({"feature": ["a", "b"] * 5})
+    with pytest.raises(error, match=match):
+        infer_feature_attributes(df, **kwargs)

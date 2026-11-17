@@ -39,6 +39,7 @@ class IFAWarningEmitterType(Enum):
     VALUE_COUNTS_PROCESSING = "value_counts_processing"
     EXCESSIVE_FLOAT_PRECISION = "excessive_float_precision"
     POSSIBLE_EXCESSIVE_FLOAT_PRECISION = "possible_excessive_float_precision"
+    DATE_INTENT_DROPS_TIME = "date_intent_drops_time"
     SIMPLE = "simple"
 
 
@@ -150,6 +151,17 @@ class PossibleExcessiveFloatPrecisionWarningEmitter(FloatPrecisionWarningEmitter
     _certainty = "may contain"
 
 
+class DateIntentDropsTimeWarningEmitter(IFAWarningEmitter):
+    """Emitter for a warning about datetime features that are given the "date" intent."""
+
+    def emit(self):
+        """Emit the warning."""
+        warnings.warn('The following features hold datetimes but are given the "date" intent in `override_intent`: '
+                      f"{self.features_list}"
+                      "Their values are trained as dates only; the time of day and time zone of each value are "
+                      "dropped.", UserWarning, stacklevel=_user_stacklevel())
+
+
 class SimpleWarningEmitter(IFAWarningEmitter):
     """Emitter for simple warnings that are saved via the `features_list`."""
 
@@ -172,6 +184,7 @@ class IFAWarningCollector:
         IFAWarningEmitterType.VALUE_COUNTS_PROCESSING: ValueCountsProcessing,
         IFAWarningEmitterType.EXCESSIVE_FLOAT_PRECISION: ExcessiveFloatPrecisionWarningEmitter,
         IFAWarningEmitterType.POSSIBLE_EXCESSIVE_FLOAT_PRECISION: PossibleExcessiveFloatPrecisionWarningEmitter,
+        IFAWarningEmitterType.DATE_INTENT_DROPS_TIME: DateIntentDropsTimeWarningEmitter,
         IFAWarningEmitterType.SIMPLE: SimpleWarningEmitter,
     }
 

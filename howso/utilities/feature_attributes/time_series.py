@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Iterable, MutableMapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import logging
@@ -34,6 +34,7 @@ from howso.utilities.utilities import (
 
 if t.TYPE_CHECKING:
     from howso.client.typing import (
+        FeatureIntent,
         PreserveRareValues,
         PreserveRareValuesCaps,
     )
@@ -386,6 +387,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
+        override_intent: t.Optional[Mapping[str, FeatureIntent | Iterable[str]]] = None,
         preserve_rare_values: t.Optional[PreserveRareValues] = None,
         preserve_rare_values_caps: t.Optional[PreserveRareValuesCaps] = None,
         preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
@@ -610,6 +612,10 @@ class InferFeatureAttributesTimeSeries(ABC):
                     "size" : [ "small", "medium", "large", "huge" ]
                 }
 
+        override_intent : dict of str to list or str, optional
+            (Optional) Dict that configures how features are to be processed. See
+            ``infer_feature_attributes`` for details.
+
         preserve_rare_values : dict or list of str or "all" or "off", optional
             (Optional) The rare values to preserve during data distillation, so that their signal is
             not lost. Case weight multipliers are written to each feature's "value_weight_multipliers"
@@ -827,6 +833,7 @@ class InferFeatureAttributesTimeSeries(ABC):
             nominal_substitution_config=nominal_substitution_config,
             num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
+            override_intent=override_intent,
             preserve_rare_values=preserve_rare_values,
             preserve_rare_values_caps=preserve_rare_values_caps,
             preserve_rare_values_distilled_min_cases=preserve_rare_values_distilled_min_cases,

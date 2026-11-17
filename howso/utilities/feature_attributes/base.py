@@ -44,6 +44,7 @@ from howso.utilities.utilities import (
 if TYPE_CHECKING:
     from howso.client.typing import (
         FeatureAttributes,
+        FeatureIntent,
         FeatureRareValueConfig,
         FullPreserveRareValuesConfig,
         FeatureRareValues,
@@ -98,6 +99,79 @@ Applies to a feature listed in ``preserve_rare_values_caps`` without a cap of it
 that is not listed has no cap: its significant values give up as much as preserving every rare
 value requires.
 """
+
+FEATURE_INTENTS: frozenset[str] = frozenset({
+    "boolean", "number", "date", "datetime", "time", "string", "tokenizable_string", "amalgam", "json", "yaml",
+})
+"""The intent descriptors accepted by ``override_intent``."""
+
+DATE_TIME_INTENTS: frozenset[str] = frozenset({"date", "datetime", "time"})
+"""The intent descriptors whose features are parsed as dates and/or times."""
+
+INTENT_FEATURE_TYPES: dict[str, frozenset[str]] = {
+    intent: frozenset({"nominal", "continuous"}) for intent in FEATURE_INTENTS
+} | {
+    "boolean": frozenset({"nominal"}),
+    "string": frozenset({"nominal"}),
+    "tokenizable_string": frozenset({"continuous"}),
+}
+"""
+The feature types that may be given in ``types`` for a feature with each intent descriptor.
+
+No intent allows "ordinal", as ordinal features are processed according to ``ordinal_feature_values`` only.
+"""
+
+
+def _normalize_override_intent(
+    override_intent: Mapping[str, FeatureIntent | Iterable[str]] | None,
+) -> dict[str, FeatureIntent]:
+    """
+    Get ``override_intent`` as a map of feature name to intent descriptor.
+
+    Each entry of `override_intent` either maps a feature name to an intent descriptor or an
+    intent descriptor to the names of its features; both forms may appear in the same mapping.
+
+    Parameters
+    ----------
+    override_intent : Mapping, optional
+        The ``override_intent`` given to :func:`infer_feature_attributes`.
+
+    Returns
+    -------
+    dict of str to str
+        The intent descriptor of each named feature.
+
+    Raises
+    ------
+    TypeError
+        If `override_intent` is not a mapping or an entry is of an unrecognized form.
+    ValueError
+        If an intent descriptor is not recognized or a feature is given more than one intent.
+    """
+    if override_intent is None:
+        return {}
+    if not isinstance(override_intent, Mapping):
+        raise TypeError("`override_intent` must be a dict of feature names to intent descriptors or intent "
+                        f"descriptors to lists of feature names, not {type(override_intent).__name__}.")
+    intents: dict[str, FeatureIntent] = {}
+    for key, value in override_intent.items():
+        if isinstance(value, str):
+            pairs = [(key, value)]
+        elif isinstance(value, Iterable):
+            pairs = [(feature, key) for feature in value]
+        else:
+            raise TypeError(f"The `override_intent` entry for `{key}` must be an intent descriptor or a list "
+                            f"of feature names, not {type(value).__name__}.")
+        for feature, intent in pairs:
+            if intent not in FEATURE_INTENTS:
+                valid = ", ".join(f'"{i}"' for i in sorted(FEATURE_INTENTS))
+                raise ValueError(f'`override_intent` gives the unrecognized intent "{intent}" for `{feature}`. '
+                                 f"Valid intents are: {valid}.")
+            if intents.get(feature, intent) != intent:
+                raise ValueError(f'`override_intent` gives `{feature}` more than one intent: "{intents[feature]}" '
+                                 f'and "{intent}".')
+            intents[feature] = cast("FeatureIntent", intent)
+    return intents
 
 
 def _rare_value_features(preserve_rare_values: PreserveRareValues | None) -> list[str]:
@@ -1203,6 +1277,57 @@ class InferFeatureAttributesBase(ABC):
                 names = ", ".join(f"`{feature}`" for feature in unknown)
                 raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
 
+    def _validate_override_intent(
+        self,
+        override_intent: Mapping[str, FeatureIntent | Iterable[str]] | None,
+        ordinal_feature_values: Mapping[str, Any] | None = None,
+        datetime_feature_formats: Mapping[str, Any] | None = None,
+        types: Mapping[str, str | Iterable[str]] | None = None,
+    ) -> None:
+        """
+        Check ``override_intent`` against the features in the data and the other parameters.
+
+        Called once, before features are processed in separate processes, so an error is raised once
+        and a feature missing from a process's share of the columns is never mistaken for a typo.
+
+        Raises
+        ------
+        TypeError
+            If `override_intent` is of an unrecognized form.
+        ValueError
+            If `override_intent` names a feature that is not in the data, gives an unrecognized intent,
+            gives a feature more than one intent, or conflicts with `ordinal_feature_values`,
+            `datetime_feature_formats`, or `types`.
+        """
+        intents = _normalize_override_intent(override_intent)
+        preset_types: dict[str, str] = {}
+        for key, value in (types or {}).items():
+            if isinstance(value, str):
+                preset_types[key] = value
+            else:
+                preset_types.update({feature: key for feature in value})
+        feature_names = self._get_feature_names()
+        unknown = [feature for feature in intents if feature not in feature_names]
+        if unknown:
+            names = ", ".join(f"`{feature}`" for feature in unknown)
+            raise ValueError(f"`override_intent` names features that are not in the data: {names}.")
+        for feature, intent in intents.items():
+            if feature in (ordinal_feature_values or {}):
+                raise ValueError(f"`{feature}` is given in both `override_intent` and `ordinal_feature_values`; "
+                                 "ordinal features are processed according to `ordinal_feature_values` only.")
+            dt_format = (datetime_feature_formats or {}).get(feature)
+            if intent in DATE_TIME_INTENTS and dt_format is False:
+                raise ValueError(f'`override_intent` gives `{feature}` the intent "{intent}", but '
+                                 "`datetime_feature_formats` declares it as not a date/time.")
+            if intent not in DATE_TIME_INTENTS and dt_format:
+                raise ValueError(f'`override_intent` gives `{feature}` the intent "{intent}", but '
+                                 "`datetime_feature_formats` gives it a date/time format.")
+            preset_type = preset_types.get(feature)
+            if preset_type is not None and preset_type not in INTENT_FEATURE_TYPES[intent]:
+                allowed = " or ".join(f'"{t}"' for t in sorted(INTENT_FEATURE_TYPES[intent]))
+                raise ValueError(f'`override_intent` gives `{feature}` the intent "{intent}", but `types` gives it '
+                                 f'the type "{preset_type}". Features with this intent must be {allowed}.')
+
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
                  max_distilled_cases: int | None = None,
@@ -1222,6 +1347,7 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[Any]] | None = None,
+                 override_intent: Mapping[str, FeatureIntent | Iterable[str]] | None = None,
                  preserve_rare_values: PreserveRareValues | None = None,
                  preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
                  preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
@@ -1252,6 +1378,8 @@ class InferFeatureAttributesBase(ABC):
 
         if dependent_features is None:
             dependent_features = dict()
+
+        intents = _normalize_override_intent(override_intent)
 
         self.default_time_zone = default_time_zone
 
@@ -1323,6 +1451,13 @@ class InferFeatureAttributesBase(ABC):
                         "type": "ordinal",
                         "bounds": {"allowed": ordinal_feature_values[feature_name]}
                     }})
+
+            # EXPLICITLY DECLARED INTENTS (date/time intents with a declared format are parsed by it below)
+            elif feature_name in intents and not (
+                intents[feature_name] in DATE_TIME_INTENTS and self.datetime_feature_formats.get(feature_name)
+            ):
+                self.attributes = merge(self.attributes, {
+                    feature_name: self._infer_intent_attributes(feature_name, intents[feature_name], feature_type)})
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
             elif self.datetime_feature_formats.get(feature_name, None):
@@ -1474,8 +1609,8 @@ class InferFeatureAttributesBase(ABC):
                 # attributes dictionary in some circumstances.
                 if feature_name not in self.data.columns:
                     continue
-                # Don't infer bounds for JSON/YAML features
-                if _attributes.get("data_type") in ["json", "yaml"]:
+                # Don't infer bounds for JSON/YAML/Amalgam features
+                if _attributes.get("data_type") in ["json", "yaml", "amalgam"]:
                     continue
                 try:
                     bounds = self._infer_feature_bounds(
@@ -1657,16 +1792,7 @@ class InferFeatureAttributesBase(ABC):
                 "data_type": "number",
             }
         if self._is_json_feature(feature_name):
-            typing_attrs = {
-                "type": "continuous",
-                "data_type": "json",
-            }
-            first_non_null = self._get_first_non_null(feature_name)
-            if isinstance(first_non_null, (Set, Sequence, Mapping)) and not isinstance(first_non_null, (str, bytes)):
-                typing_attrs["original_type"] = {"data_type": FeatureType.CONTAINER.value}
-                if isinstance(first_non_null, Set):
-                    typing_attrs["original_type"]["coercion"] = "set"
-            return typing_attrs
+            return self._infer_json_attributes(feature_name)
         if self._is_yaml_feature(feature_name):
             return {
                 "type": "continuous",
@@ -1693,6 +1819,92 @@ class InferFeatureAttributesBase(ABC):
                 "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
             }
         return self._infer_unknown_attributes(feature_name)
+
+    def _infer_json_attributes(self, feature_name: str) -> dict:
+        """Get attributes for the given column of JSON documents or Python containers."""
+        typing_attrs: dict[str, Any] = {
+            "type": "continuous",
+            "data_type": "json",
+        }
+        first_non_null = self._get_first_non_null(feature_name)
+        if isinstance(first_non_null, (Set, Sequence, Mapping)) and not isinstance(first_non_null, (str, bytes)):
+            typing_attrs["original_type"] = {"data_type": FeatureType.CONTAINER.value}
+            if isinstance(first_non_null, Set):
+                typing_attrs["original_type"]["coercion"] = "set"
+        return typing_attrs
+
+    def _infer_intent_attributes(  # noqa: PLR0911
+        self,
+        feature_name: str,
+        intent: FeatureIntent,
+        feature_type: FeatureType | None,
+    ) -> dict:
+        """
+        Get attributes for the given column according to its intent descriptor in ``override_intent``.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of the feature.
+        intent : str
+            The feature's intent descriptor.
+        feature_type : FeatureType, optional
+            The type of the feature's data.
+
+        Returns
+        -------
+        dict
+            The feature's attributes.
+
+        Raises
+        ------
+        ValueError
+            If the feature is a date or datetime whose string values are not ISO 8601.
+        """
+        if intent == "boolean":
+            return self._infer_boolean_attributes(feature_name)
+        if intent == "number":
+            if feature_type == FeatureType.INTEGER:
+                return self._infer_integer_attributes(feature_name)
+            if feature_type == FeatureType.NUMERIC:
+                return self._infer_floating_point_attributes(feature_name)
+            return {"type": "continuous", "data_type": "number"}
+        if intent in ("date", "datetime"):
+            if (
+                isinstance(self._get_first_non_null(feature_name), str)
+                and not self._is_iso8601_datetime_column(feature_name)
+            ):
+                raise ValueError(f'Feature "{feature_name}" has the intent "{intent}" but its values are not '
+                                 "ISO 8601. Please specify the format via `datetime_feature_formats`.")
+            if intent == "date":
+                if feature_type == FeatureType.DATETIME:
+                    self.warnings_collector.triage(IFAWarningEmitterType.DATE_INTENT_DROPS_TIME, feature_name)
+                return self._infer_date_attributes(feature_name)
+            return self._infer_datetime_attributes(feature_name)
+        if intent == "time":
+            return self._infer_time_attributes(feature_name)
+        if intent == "string":
+            return {"type": "nominal", "data_type": "string"}
+        if intent == "tokenizable_string":
+            return {
+                "type": "continuous",
+                "data_type": "json",
+                "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
+            }
+        if intent == "amalgam":
+            return {"type": "continuous", "data_type": "amalgam"}
+        if intent == "yaml":
+            return {"type": "continuous", "data_type": "yaml"}
+        # "json": JSON documents and containers as-is; any other values are each serialized as a
+        # JSON scalar, with strings compared by edit distance.
+        if self._is_json_feature(feature_name):
+            return self._infer_json_attributes(feature_name)
+        return {
+            "type": "continuous",
+            "data_type": "json",
+            "original_type": {"data_type": FeatureType.CONTAINER.value},
+            "nominal_strings": False,
+        }
 
     def _infer_unknown_attributes(self, *args: Any) -> dict:
         """Get inferred attributes for the given unknown-type column."""

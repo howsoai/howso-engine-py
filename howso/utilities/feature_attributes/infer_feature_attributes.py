@@ -24,6 +24,7 @@ from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFA
 
 if TYPE_CHECKING:
     from howso.client.typing import (
+        FeatureIntent,
         FeatureType,
         PreserveRareValues,
         PreserveRareValuesCaps,
@@ -49,6 +50,7 @@ class InferOptions(TypedDict, total=False):
     mode_bound_features: Iterable[str]
     nominal_substitution_config: dict[str, dict[str, Any]]
     ordinal_feature_values: dict[str, list[Any] | tuple[str]]
+    override_intent: dict[str, FeatureIntent] | dict[FeatureIntent, list[str]]
     preserve_rare_values: PreserveRareValues | None
     preserve_rare_values_caps: PreserveRareValuesCaps | None
     preserve_rare_values_distilled_min_cases: int
@@ -308,7 +310,7 @@ def infer_feature_attributes(
         continuous features have an order value of 1.
 
     ordinal_feature_values : dict, optional
-        (optional) Dict for ordinal string features defining an ordered
+        (Optional) Dict for ordinal string features defining an ordered
         list of string values for each feature, ordered low to high. If
         specified will set 'type' to be 'ordinal' for all features in
         this map.
@@ -318,6 +320,44 @@ def infer_feature_attributes(
             {
                 "grade" : [ "F", "D", "C", "B", "A" ],
                 "size" : [ "small", "medium", "large", "huge" ]
+            }
+
+    override_intent : dict of str to list or str, optional
+        (Optional) Dict that configures how features are to be processed. Useful in circumstances
+        where the intent and/or data type is ambiguous or not what might be reasonably inferred.
+        May be a mapping of feature name to intent descriptor or intent descriptor to list of
+        applicable features. Features not listed will be inferred normally. Intent descriptors
+        roughly correspond to a feature's `data_type` attribute in the resulting feature
+        attributes dictionary. They are as follows:
+
+        - "boolean" : Booleans
+        - "number" : Int or float values
+        - "date" : Dates with no time component
+        - "datetime" : Datetimes
+        - "time" : Timestamps with no date component
+        - "string" : Nominal strings
+        - "tokenizable_string" : Continuous tokenizable strings
+        - "amalgam" : Amalgam language code
+        - "json" : Valid JSON, including plain strings to be processed using edit distance
+        - "yaml" : Valid YAML
+
+        A feature's `type` is set according to its intent unless given in `types`, where it must be
+        "nominal" for the "boolean" and "string" intents, "continuous" for the "tokenizable_string"
+        intent, and "nominal" or "continuous" for any other intent. Features with a
+        "date", "datetime", or "time" intent are parsed with their format in `datetime_feature_formats`
+        if given; features with any other intent may not be given a format there. A feature may not
+        be given both an intent and `ordinal_feature_values`.
+
+        Examples::
+
+            {
+                "string": ["col_that_looks_tokenizable"],
+                "json": ["col_that_is_obvious_json", "col_that_isnt"],
+            }
+
+            {
+                "col_with_no_dates": "time",
+                "col_that_is_amalgam": "amalgam",
             }
 
     preserve_rare_values : dict or list of str or "all" or "off", optional

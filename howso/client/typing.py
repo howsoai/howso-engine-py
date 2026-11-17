@@ -669,3 +669,17 @@ AblationThresholdMap: TypeAlias = dict[_ThresholdMeasureKey, dict[str, float]]
 """Threshold map(s) for auto-ablation and data reduction."""
 
 FeatureType: TypeAlias = Literal["continuous", "ordinal", "nominal"]
+
+FeatureIntent: TypeAlias = Literal[
+    "boolean",
+    "number",
+    "date",
+    "datetime",
+    "time",
+    "string",
+    "tokenizable_string",
+    "amalgam",
+    "json",
+    "yaml",
+]
+"""How :func:`~howso.utilities.infer_feature_attributes` is to process a feature, given in ``override_intent``."""
