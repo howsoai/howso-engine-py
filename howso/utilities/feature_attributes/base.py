@@ -108,9 +108,9 @@ FEATURE_INTENTS: frozenset[str] = frozenset({
 DATE_TIME_INTENTS: frozenset[str] = frozenset({"date", "datetime", "time"})
 """The intent descriptors whose features are parsed as dates and/or times."""
 
-INTENT_FEATURE_TYPES: dict[str, frozenset[str]] = {
-    intent: frozenset({"nominal", "continuous"}) for intent in FEATURE_INTENTS
-} | {
+INTENT_FEATURE_TYPES: dict[str, frozenset[str]] = dict.fromkeys(
+    FEATURE_INTENTS, frozenset({"nominal", "continuous"})
+) | {
     "boolean": frozenset({"nominal"}),
     "string": frozenset({"nominal"}),
     "tokenizable_string": frozenset({"continuous"}),
@@ -1305,7 +1305,7 @@ class InferFeatureAttributesBase(ABC):
             if isinstance(value, str):
                 preset_types[key] = value
             else:
-                preset_types.update({feature: key for feature in value})
+                preset_types.update(dict.fromkeys(value, key))
         feature_names = self._get_feature_names()
         unknown = [feature for feature in intents if feature not in feature_names]
         if unknown:
@@ -1833,7 +1833,7 @@ class InferFeatureAttributesBase(ABC):
                 typing_attrs["original_type"]["coercion"] = "set"
         return typing_attrs
 
-    def _infer_intent_attributes(  # noqa: PLR0911
+    def _infer_intent_attributes(  # noqa: PLR0911, PLR0912
         self,
         feature_name: str,
         intent: FeatureIntent,

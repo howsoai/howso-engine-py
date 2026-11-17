@@ -154,7 +154,7 @@ class PossibleExcessiveFloatPrecisionWarningEmitter(FloatPrecisionWarningEmitter
 class DateIntentDropsTimeWarningEmitter(IFAWarningEmitter):
     """Emitter for a warning about datetime features that are given the "date" intent."""
 
-    def emit(self):
+    def emit(self) -> None:
         """Emit the warning."""
         warnings.warn('The following features hold datetimes but are given the "date" intent in `override_intent`: '
                       f"{self.features_list}"

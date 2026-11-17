@@ -341,13 +341,6 @@ def infer_feature_attributes(
         - "json" : Valid JSON, including plain strings to be processed using edit distance
         - "yaml" : Valid YAML
 
-        A feature's `type` is set according to its intent unless given in `types`, where it must be
-        "nominal" for the "boolean" and "string" intents, "continuous" for the "tokenizable_string"
-        intent, and "nominal" or "continuous" for any other intent. Features with a
-        "date", "datetime", or "time" intent are parsed with their format in `datetime_feature_formats`
-        if given; features with any other intent may not be given a format there. A feature may not
-        be given both an intent and `ordinal_feature_values`.
-
         Examples::
 
             {
