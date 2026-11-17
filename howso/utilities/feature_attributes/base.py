@@ -46,6 +46,7 @@ if TYPE_CHECKING:
         FeatureAttributes,
         FeatureIntent,
         FeatureRareValueConfig,
+        OverrideIntent,
         FullPreserveRareValuesConfig,
         FeatureRareValues,
         PreserveRareValues,
@@ -123,13 +124,14 @@ No intent allows "ordinal", as ordinal features are processed according to ``ord
 
 
 def _normalize_override_intent(
-    override_intent: Mapping[str, FeatureIntent | Iterable[str]] | None,
+    override_intent: OverrideIntent | None,
 ) -> dict[str, FeatureIntent]:
     """
     Get ``override_intent`` as a map of feature name to intent descriptor.
 
-    Each entry of `override_intent` either maps a feature name to an intent descriptor or an
-    intent descriptor to the names of its features; both forms may appear in the same mapping.
+    `override_intent` maps either every feature name to an intent descriptor or every intent
+    descriptor to a collection of feature names. It is the latter when any of its values is a
+    collection other than a string, so a feature may be named like an intent descriptor.
 
     Parameters
     ----------
@@ -144,7 +146,7 @@ def _normalize_override_intent(
     Raises
     ------
     TypeError
-        If `override_intent` is not a mapping or an entry is of an unrecognized form.
+        If `override_intent` is not a mapping or mixes the two forms.
     ValueError
         If an intent descriptor is not recognized or a feature is given more than one intent.
     """
@@ -153,24 +155,37 @@ def _normalize_override_intent(
     if not isinstance(override_intent, Mapping):
         raise TypeError("`override_intent` must be a dict of feature names to intent descriptors or intent "
                         f"descriptors to lists of feature names, not {type(override_intent).__name__}.")
+
+    def is_feature_collection(value: Any) -> bool:
+        return isinstance(value, Collection) and not isinstance(value, (str, bytes))
+
+    pairs: list[tuple[Any, Any]]
+    if any(is_feature_collection(value) for value in override_intent.values()):
+        mixed = [key for key, value in override_intent.items() if not is_feature_collection(value)]
+        if mixed:
+            names = ", ".join(f"`{key}`" for key in mixed)
+            raise TypeError("`override_intent` must map either every intent descriptor to a list of feature "
+                            "names or every feature name to an intent descriptor, but these entries are not "
+                            f"lists: {names}.")
+        pairs = [(feature, intent) for intent, features in override_intent.items() for feature in features]
+    else:
+        mixed = [key for key, value in override_intent.items() if not isinstance(value, str)]
+        if mixed:
+            names = ", ".join(f"`{key}`" for key in mixed)
+            raise TypeError("`override_intent` must map either every feature name to an intent descriptor or every "
+                            f"intent descriptor to a list of feature names, but these entries are neither: {names}.")
+        pairs = list(override_intent.items())
+
     intents: dict[str, FeatureIntent] = {}
-    for key, value in override_intent.items():
-        if isinstance(value, str):
-            pairs = [(key, value)]
-        elif isinstance(value, Iterable):
-            pairs = [(feature, key) for feature in value]
-        else:
-            raise TypeError(f"The `override_intent` entry for `{key}` must be an intent descriptor or a list "
-                            f"of feature names, not {type(value).__name__}.")
-        for feature, intent in pairs:
-            if intent not in FEATURE_INTENTS:
-                valid = ", ".join(f'"{i}"' for i in sorted(FEATURE_INTENTS))
-                raise ValueError(f'`override_intent` gives the unrecognized intent "{intent}" for `{feature}`. '
-                                 f"Valid intents are: {valid}.")
-            if intents.get(feature, intent) != intent:
-                raise ValueError(f'`override_intent` gives `{feature}` more than one intent: "{intents[feature]}" '
-                                 f'and "{intent}".')
-            intents[feature] = cast("FeatureIntent", intent)
+    for feature, intent in pairs:
+        if intent not in FEATURE_INTENTS:
+            valid = ", ".join(f'"{i}"' for i in sorted(FEATURE_INTENTS))
+            raise ValueError(f'`override_intent` gives the unrecognized intent "{intent}" for `{feature}`. '
+                             f"Valid intents are: {valid}.")
+        if intents.get(feature, intent) != intent:
+            raise ValueError(f'`override_intent` gives `{feature}` more than one intent: "{intents[feature]}" '
+                             f'and "{intent}".')
+        intents[feature] = cast("FeatureIntent", intent)
     return intents
 
 
@@ -1279,7 +1294,7 @@ class InferFeatureAttributesBase(ABC):
 
     def _validate_override_intent(
         self,
-        override_intent: Mapping[str, FeatureIntent | Iterable[str]] | None,
+        override_intent: OverrideIntent | None,
         ordinal_feature_values: Mapping[str, Any] | None = None,
         datetime_feature_formats: Mapping[str, Any] | None = None,
         types: Mapping[str, str | Iterable[str]] | None = None,
@@ -1347,7 +1362,7 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[Any]] | None = None,
-                 override_intent: Mapping[str, FeatureIntent | Iterable[str]] | None = None,
+                 override_intent: OverrideIntent | None = None,
                  preserve_rare_values: PreserveRareValues | None = None,
                  preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
                  preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,

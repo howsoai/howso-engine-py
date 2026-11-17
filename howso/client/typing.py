@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Collection, Mapping, MutableMapping
 import os
 from typing import Any, Literal, Union
 
@@ -683,3 +683,11 @@ FeatureIntent: TypeAlias = Literal[
     "yaml",
 ]
 """How :func:`~howso.utilities.infer_feature_attributes` is to process a feature, given in ``override_intent``."""
+
+OverrideIntent: TypeAlias = Union[Mapping[str, FeatureIntent], Mapping[FeatureIntent, Collection[str]]]
+"""
+The accepted forms of ``override_intent``.
+
+Either every feature name mapped to an intent descriptor or every intent descriptor mapped to a
+collection of feature names.
+"""

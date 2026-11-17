@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Collection, Iterable, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import logging
@@ -34,7 +34,7 @@ from howso.utilities.utilities import (
 
 if t.TYPE_CHECKING:
     from howso.client.typing import (
-        FeatureIntent,
+        OverrideIntent,
         PreserveRareValues,
         PreserveRareValuesCaps,
     )
@@ -387,7 +387,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
-        override_intent: t.Optional[Mapping[str, FeatureIntent | Iterable[str]]] = None,
+        override_intent: t.Optional[OverrideIntent] = None,
         preserve_rare_values: t.Optional[PreserveRareValues] = None,
         preserve_rare_values_caps: t.Optional[PreserveRareValuesCaps] = None,
         preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,

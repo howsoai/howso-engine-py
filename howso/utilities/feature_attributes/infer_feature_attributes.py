@@ -24,8 +24,8 @@ from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFA
 
 if TYPE_CHECKING:
     from howso.client.typing import (
-        FeatureIntent,
         FeatureType,
+        OverrideIntent,
         PreserveRareValues,
         PreserveRareValuesCaps,
     )
@@ -50,7 +50,7 @@ class InferOptions(TypedDict, total=False):
     mode_bound_features: Iterable[str]
     nominal_substitution_config: dict[str, dict[str, Any]]
     ordinal_feature_values: dict[str, list[Any] | tuple[str]]
-    override_intent: dict[str, FeatureIntent] | dict[FeatureIntent, list[str]]
+    override_intent: OverrideIntent
     preserve_rare_values: PreserveRareValues | None
     preserve_rare_values_caps: PreserveRareValuesCaps | None
     preserve_rare_values_distilled_min_cases: int
@@ -326,7 +326,8 @@ def infer_feature_attributes(
         (Optional) Dict that configures how features are to be processed. Useful in circumstances
         where the intent and/or data type is ambiguous or not what might be reasonably inferred.
         May be a mapping of feature name to intent descriptor or intent descriptor to list of
-        applicable features. Features not listed will be inferred normally. Intent descriptors
+        applicable features, but not a mix of the two; it is read as the latter when any of its
+        values is a list. Features not listed will be inferred normally. Intent descriptors
         roughly correspond to a feature's `data_type` attribute in the resulting feature
         attributes dictionary. They are as follows:
 

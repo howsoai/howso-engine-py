@@ -2449,7 +2449,8 @@ def test_duplicate_index_matches_unique_index():
 @pytest.mark.parametrize("override_intent", [
     {"json": ["barretts_privateers", "northwest_passage"]},
     {"barretts_privateers": "json", "northwest_passage": "json"},
-    {"json": ["barretts_privateers"], "northwest_passage": "json"},
+    {"json": ("barretts_privateers", "northwest_passage")},
+    {"json": {"barretts_privateers", "northwest_passage"}, "string": []},
 ])
 def test_override_intent_edit_distance_strings(override_intent):
     """Plain strings with the "json" intent are serialized as JSON and compared by edit distance."""
@@ -2504,6 +2505,14 @@ def test_override_intent_respects_types():
     assert features["feature"]["data_type"] == "json"
 
 
+def test_override_intent_feature_named_like_intent():
+    """A feature named like an intent descriptor is read as a feature when every value is a string."""
+    df = pd.DataFrame({"json": ["a", "b"] * 5, "string": ['{"a": 1}', '{"b": 2}'] * 5})
+    features = infer_feature_attributes(df, override_intent={"json": "string", "string": "json"})
+    assert features["json"]["data_type"] == "string"
+    assert features["string"]["data_type"] == "json"
+
+
 @pytest.mark.parametrize(("intent", "feature_type"), [
     ("boolean", "nominal"),
     ("string", "nominal"),
@@ -2547,9 +2556,10 @@ def test_override_intent_uses_datetime_format():
 @pytest.mark.parametrize(("kwargs", "error", "match"), [
     ({"override_intent": {"missing": "json"}}, ValueError, "not in the data"),
     ({"override_intent": {"jsn": ["feature"]}}, ValueError, "unrecognized intent"),
-    ({"override_intent": {"feature": "json", "string": ["feature"]}}, ValueError, "more than one intent"),
+    ({"override_intent": {"json": ["feature"], "string": ["feature"]}}, ValueError, "more than one intent"),
+    ({"override_intent": {"feature": "json", "string": ["other"]}}, TypeError, "not lists: `feature`"),
     ({"override_intent": ["feature"]}, TypeError, "must be a dict"),
-    ({"override_intent": {"feature": 1}}, TypeError, "must be an intent descriptor"),
+    ({"override_intent": {"feature": 1}}, TypeError, "neither: `feature`"),
     ({"override_intent": {"feature": "string"}, "ordinal_feature_values": {"feature": ["a", "b"]}},
      ValueError, "ordinal_feature_values"),
     ({"override_intent": {"feature": "json"}, "datetime_feature_formats": {"feature": "%Y"}},
