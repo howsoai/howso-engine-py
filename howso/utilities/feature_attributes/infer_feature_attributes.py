@@ -129,7 +129,7 @@ def infer_feature_attributes(
 
     data_type_overrides : dict of str to list or str, optional
         (Optional) Dict that configures how features are to be processed. Useful in circumstances
-        where the intent and/or data type is ambiguous or not what might be reasonably inferred.
+        where the data type is ambiguous or not what might be reasonably inferred.
         May be a mapping of feature name to data type descriptor or data type descriptor to list
         of applicable features, but not a mix of the two; it is read as the latter when any of its
         values is a list. Features not listed will be inferred normally. Data type descriptors
@@ -141,10 +141,13 @@ def infer_feature_attributes(
         - "date" : Dates with no time component
         - "datetime" : Datetimes
         - "time" : Timestamps with no date component
-        - "string" : Nominal strings
+        - "timedelta" : Durations, given as timedeltas or as numbers of seconds
+        - "string" : Strings, compared by edit distance when given as "continuous" in `types`
+        - "string_mixable" : Continuous strings whose predicted values may mix characters from
+          multiple original values
         - "tokenizable_string" : Continuous tokenizable strings
         - "amalgam" : Amalgam language code
-        - "json" : Valid JSON, including plain strings to be processed using edit distance
+        - "json" : Valid JSON
         - "yaml" : Valid YAML
 
         Examples::

@@ -679,13 +679,15 @@ AblationThresholdMap: TypeAlias = dict[_ThresholdMeasureKey, dict[str, float]]
 
 FeatureType: TypeAlias = Literal["continuous", "ordinal", "nominal"]
 
-FeatureIntent: TypeAlias = Literal[
+DataTypeDescriptor: TypeAlias = Literal[
     "boolean",
     "number",
     "date",
     "datetime",
     "time",
+    "timedelta",
     "string",
+    "string_mixable",
     "tokenizable_string",
     "amalgam",
     "json",
@@ -693,10 +695,10 @@ FeatureIntent: TypeAlias = Literal[
 ]
 """How :func:`~howso.utilities.infer_feature_attributes` is to process a feature, given in ``data_type_overrides``."""
 
-DataTypeOverrides: TypeAlias = Union[Mapping[str, FeatureIntent], Mapping[FeatureIntent, Collection[str]]]
+DataTypeOverrides: TypeAlias = Union[Mapping[str, DataTypeDescriptor], Mapping[DataTypeDescriptor, Collection[str]]]
 """
 The accepted forms of ``data_type_overrides``.
 
-Either every feature name mapped to an intent descriptor or every intent descriptor mapped to a
-collection of feature names.
+Either every feature name mapped to a data type descriptor or every data type descriptor mapped
+to a collection of feature names.
 """

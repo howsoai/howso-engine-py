@@ -205,7 +205,7 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     time_feature_deltas = None
 
     for f_name in feature_names:
-        if features[f_name].get("data_type") in {"json", "yaml", "amalgam", "string_mixable"}:
+        if features[f_name].get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
             continue
 
         if features[f_name].get("type") != "continuous" or "time_series" not in features[f_name]:
@@ -862,7 +862,7 @@ class InferFeatureAttributesTimeSeries(ABC):
                 # Non-continuous or semi-structure types get just an empty "time_series" dict.
                 elif (
                     features[f_name]["type"] != "continuous" or
-                    features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}
+                    features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string", "string_mixable"}
                 ):
                     features[f_name]["time_series"] = {}
                 # The remaining get the default "type"
@@ -1250,7 +1250,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             for f_name, f_attrs in features.items()
             if f_attrs.get("type") == "continuous"
             and "time_series" in f_attrs
-            and f_attrs.get("data_type") not in {"json", "yaml", "amalgam", "string_mixable"}
+            and f_attrs.get("data_type") not in {"json", "yaml", "amalgam", "string", "string_mixable"}
         ]
 
         if not continuous_ts_features:

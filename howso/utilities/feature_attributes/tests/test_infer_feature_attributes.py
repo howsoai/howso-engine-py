@@ -2447,84 +2447,92 @@ def test_duplicate_index_matches_unique_index():
 
 
 @pytest.mark.parametrize("data_type_overrides", [
-    {"json": ["barretts_privateers", "northwest_passage"]},
-    {"barretts_privateers": "json", "northwest_passage": "json"},
-    {"json": ("barretts_privateers", "northwest_passage")},
-    {"json": {"barretts_privateers", "northwest_passage"}, "string": []},
+    {"string": ["barretts_privateers", "northwest_passage"]},
+    {"barretts_privateers": "string", "northwest_passage": "string"},
+    {"string": ("barretts_privateers", "northwest_passage")},
+    {"string": {"barretts_privateers", "northwest_passage"}, "json": []},
 ])
 def test_data_type_overrides_edit_distance_strings(data_type_overrides):
-    """Plain strings with the "json" intent are serialized as JSON and compared by edit distance."""
+    """Strings set to "string" and given as continuous in `types` are compared by edit distance."""
     df = pd.DataFrame({
         "barretts_privateers": ["oh", "the", "year", "was", "1778", "how", "I", "wish", "I", "was"],
         "northwest_passage": ["for", "just", "one", "time", "I", "would", "take", "the", "northwest", "passage"],
         "birth_date": [f"2020-01-0{i}" for i in range(1, 10)] + ["2021-01-01"],
     })
-    features = infer_feature_attributes(df, data_type_overrides=data_type_overrides)
+    types = {"continuous": ["barretts_privateers", "northwest_passage"]}
+    features = infer_feature_attributes(df, data_type_overrides=data_type_overrides, types=types)
     for feature in ["barretts_privateers", "northwest_passage"]:
         assert features[feature]["type"] == "continuous"
-        assert features[feature]["data_type"] == "json"
-        assert features[feature]["original_type"] == {"data_type": "container"}
-        assert features[feature]["nominal_strings"] is False
+        assert features[feature]["data_type"] == "string"
+        assert features[feature]["bounds"] == {"allow_null": True, "nulls_observed": False}
     assert features["birth_date"]["data_type"] == "formatted_date_time"
 
-    features = infer_feature_attributes(df, data_type_overrides={"birth_date": "json"})
-    assert features["birth_date"]["data_type"] == "json"
-    assert features["birth_date"]["original_type"] == {"data_type": "container"}
+    features = infer_feature_attributes(df, data_type_overrides={"birth_date": "string"},
+                                        types={"birth_date": "continuous"})
+    assert features["birth_date"]["type"] == "continuous"
+    assert features["birth_date"]["data_type"] == "string"
     assert "date_time_format" not in features["birth_date"]
 
 
-@pytest.mark.parametrize(("data", "intent", "expected"), [
+@pytest.mark.parametrize(("data", "descriptor", "expected"), [
     (["true", "false"] * 5, "boolean", {"type": "nominal", "data_type": "boolean"}),
     ([str(i) for i in range(10)], "number", {"type": "continuous", "data_type": "number"}),
     (list(range(10)), "string", {"type": "nominal", "data_type": "string"}),
+    (["ab", "cd"] * 5, "string_mixable", {"type": "continuous", "data_type": "string_mixable"}),
     ([f"10:0{i}" for i in range(10)], "time", {"type": "continuous", "data_type": "formatted_time",
                                               "date_time_format": "%H:%M"}),
     ([f"2020-01-0{i}" for i in range(1, 10)], "date", {"type": "continuous", "data_type": "formatted_date_time"}),
+    (pd.to_timedelta(range(10), unit="s"), "timedelta", {"type": "continuous", "data_type": "number",
+                                                         "original_type": {"data_type": "timedelta",
+                                                                           "unit": "seconds"}}),
+    (list(range(10)), "timedelta", {"type": "continuous", "data_type": "number",
+                                    "original_type": {"data_type": "timedelta", "unit": "seconds"}}),
     (["a b c", "d e f"] * 5, "tokenizable_string", {"type": "continuous", "data_type": "json",
                                                     "original_type": {"data_type": "tokenizable_string"}}),
     ([f"(+ 1 {i})" for i in range(10)], "amalgam", {"type": "continuous", "data_type": "amalgam"}),
     ([f"a: {i}" for i in range(10)], "yaml", {"type": "continuous", "data_type": "yaml"}),
     ([f'{{"a": {i}}}' for i in range(10)], "json", {"type": "continuous", "data_type": "json"}),
+    ([str(i) for i in range(10)], "json", {"type": "continuous", "data_type": "json"}),
     ([[i, i + 1] for i in range(10)], "json", {"type": "continuous", "data_type": "json",
                                                "original_type": {"data_type": "container"}}),
 ])
-def test_data_type_overrides(data, intent, expected):
-    """Each intent sets the attributes it describes."""
+def test_data_type_overrides(data, descriptor, expected):
+    """Each data type descriptor sets the attributes it describes."""
     df = pd.DataFrame({"feature": data})
-    features = infer_feature_attributes(df, data_type_overrides={"feature": intent})
+    features = infer_feature_attributes(df, data_type_overrides={"feature": descriptor})
     assert expected.items() <= features["feature"].items()
-    if intent == "json" and isinstance(data[0], str):
-        assert "nominal_strings" not in features["feature"]
 
 
 def test_data_type_overrides_respects_types():
-    """A type given in `types` is kept for a feature with an intent."""
-    df = pd.DataFrame({"feature": ["a", "b", "c", "d", "e"] * 2})
+    """A type given in `types` is kept for a feature with a data type descriptor."""
+    df = pd.DataFrame({"feature": [f'{{"a": {i}}}' for i in range(10)]})
     features = infer_feature_attributes(df, data_type_overrides={"feature": "json"}, types={"feature": "nominal"})
     assert features["feature"]["type"] == "nominal"
     assert features["feature"]["data_type"] == "json"
 
 
-def test_data_type_overrides_feature_named_like_intent():
-    """A feature named like an intent descriptor is read as a feature when every value is a string."""
+def test_data_type_overrides_feature_named_like_descriptor():
+    """A feature named like a data type descriptor is read as a feature when every value is a string."""
     df = pd.DataFrame({"json": ["a", "b"] * 5, "string": ['{"a": 1}', '{"b": 2}'] * 5})
     features = infer_feature_attributes(df, data_type_overrides={"json": "string", "string": "json"})
     assert features["json"]["data_type"] == "string"
     assert features["string"]["data_type"] == "json"
 
 
-@pytest.mark.parametrize(("intent", "feature_type"), [
+@pytest.mark.parametrize(("descriptor", "feature_type"), [
     ("boolean", "nominal"),
     ("string", "nominal"),
+    ("string", "continuous"),
+    ("string_mixable", "continuous"),
     ("tokenizable_string", "continuous"),
     ("number", "nominal"),
     ("json", "continuous"),
 ])
-def test_data_type_overrides_compatible_types(intent, feature_type):
-    """A type in `types` that the intent allows is accepted, in either form of `types`."""
+def test_data_type_overrides_compatible_types(descriptor, feature_type):
+    """A type in `types` that the data type descriptor allows is accepted, in either form of `types`."""
     df = pd.DataFrame({"feature": ["1", "0"] * 5})
     for types in [{"feature": feature_type}, {feature_type: ["feature"]}]:
-        features = infer_feature_attributes(df, data_type_overrides={"feature": intent}, types=types)
+        features = infer_feature_attributes(df, data_type_overrides={"feature": descriptor}, types=types)
         assert features["feature"]["type"] == feature_type
 
 
@@ -2533,17 +2541,17 @@ def test_data_type_overrides_compatible_types(intent, feature_type):
     (pd.date_range("2020-01-01", periods=10, freq="D"), False),
 ])
 def test_data_type_overrides_date_drops_time_warning(dates, warns):
-    """The "date" intent on a column of datetimes warns that their times are dropped."""
+    """Setting a column of datetimes to "date" warns that their times are dropped."""
     df = pd.DataFrame({"feature": dates})
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         features = infer_feature_attributes(df, data_type_overrides={"feature": "date"})
     assert features["feature"]["date_time_format"] == "%Y-%m-%d"
-    assert any('"date" intent' in str(w.message) for w in caught) == warns
+    assert any('set to "date"' in str(w.message) for w in caught) == warns
 
 
 def test_data_type_overrides_uses_datetime_format():
-    """A date/time intent parses the feature with its format in `datetime_feature_formats`."""
+    """A date/time descriptor parses the feature with its format in `datetime_feature_formats`."""
     df = pd.DataFrame({"feature": [f"01/0{i}/2020" for i in range(1, 10)]})
     features = infer_feature_attributes(df, data_type_overrides={"feature": "date"},
                                         datetime_feature_formats={"feature": "%m/%d/%Y"})
@@ -2555,20 +2563,24 @@ def test_data_type_overrides_uses_datetime_format():
 
 @pytest.mark.parametrize(("kwargs", "error", "match"), [
     ({"data_type_overrides": {"missing": "json"}}, ValueError, "not in the data"),
-    ({"data_type_overrides": {"jsn": ["feature"]}}, ValueError, "unrecognized intent"),
-    ({"data_type_overrides": {"json": ["feature"], "string": ["feature"]}}, ValueError, "more than one intent"),
+    ({"data_type_overrides": {"jsn": ["feature"]}}, ValueError, "unrecognized data type descriptor"),
+    ({"data_type_overrides": {"json": ["feature"], "string": ["feature"]}}, ValueError,
+     "more than one data type descriptor"),
     ({"data_type_overrides": {"feature": "json", "string": ["other"]}}, TypeError, "not lists: `feature`"),
     ({"data_type_overrides": ["feature"]}, TypeError, "must be a dict"),
     ({"data_type_overrides": {"feature": 1}}, TypeError, "neither: `feature`"),
+    ({"data_type_overrides": {"feature": "json"}}, ValueError, "is not valid JSON"),
+    ({"data_type_overrides": {"feature": "timedelta"}}, ValueError, "neither timedeltas nor numbers"),
     ({"data_type_overrides": {"feature": "string"}, "ordinal_feature_values": {"feature": ["a", "b"]}},
      ValueError, "ordinal_feature_values"),
-    ({"data_type_overrides": {"feature": "json"}, "datetime_feature_formats": {"feature": "%Y"}},
+    ({"data_type_overrides": {"feature": "string"}, "datetime_feature_formats": {"feature": "%Y"}},
      ValueError, "gives it a date/time format"),
     ({"data_type_overrides": {"feature": "date"}, "datetime_feature_formats": {"feature": False}},
      ValueError, "not a date/time"),
-    ({"data_type_overrides": {"feature": "json"}, "types": {"feature": "ordinal"}}, ValueError, "must be"),
+    ({"data_type_overrides": {"feature": "string"}, "types": {"feature": "ordinal"}}, ValueError, "must be"),
     ({"data_type_overrides": {"feature": "boolean"}, "types": {"continuous": ["feature"]}}, ValueError, "must be"),
-    ({"data_type_overrides": {"string": ["feature"]}, "types": {"feature": "continuous"}}, ValueError, "must be"),
+    ({"data_type_overrides": {"string_mixable": ["feature"]}, "types": {"feature": "nominal"}}, ValueError,
+     "must be"),
     ({"data_type_overrides": {"feature": "tokenizable_string"}, "types": {"feature": "nominal"}},
      ValueError, "must be"),
 ])
