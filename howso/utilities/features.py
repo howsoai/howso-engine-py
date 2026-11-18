@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Mapping, Sequence
 import decimal
 from enum import Enum
 from functools import partial
+import json
 import locale
 from typing import Any, cast, TypeAlias
 import warnings
@@ -11,23 +12,20 @@ from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
+from pandas.api.extensions import ExtensionArray
 from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
     is_timedelta64_dtype,
 )
 
 from howso.utilities.internals import IgnoreWarnings, to_pandas_datetime_format
-from howso.utilities.tokenizing import (
-    HowsoTokenizer,
-    TokenizerProtocol,
-)
+from howso.utilities.tokenizing import HowsoTokenizer, TokenizerProtocol
 from howso.utilities.utilities import (
     DATETIME_TIMEZONE_PATTERN,
-    destringify_json,
+    is_null_value,
     LocaleOverride,
     seconds_to_time,
     serialize_datetimes,
-    stringify_json,
     tokenize_strings,
 )
 
@@ -118,7 +116,7 @@ class FeatureSerializer:
         if isinstance(data, np.ndarray):
             if columns is None:
                 raise HowsoError("Columns must be provided with numpy arrays.")
-            data = pd.DataFrame.from_records(data, columns=columns)
+            data = pd.DataFrame.from_records(data, columns=list(columns))
 
         if isinstance(data, pd.DataFrame):
             if columns is not None:
@@ -137,7 +135,7 @@ class FeatureSerializer:
             for col in columns:
                 col_data = filtered_data[col]
                 if isinstance(col_data, pd.DataFrame):
-                    raise ValueError(
+                    raise ValueError(  # noqa: TRY004
                         "The provided DataFrame contains duplicate column names. All column names must be unique."
                     )
                 dtype = col_data.dtype
@@ -159,7 +157,7 @@ class FeatureSerializer:
                 raise HowsoError("Columns must be provided with python Iterables.")
             result = list(data)
         else:
-            raise ValueError(
+            raise TypeError(
                 "Received unexpected data type for case data. Cases should be either a DataFrame or a list."
             )
 
@@ -177,7 +175,7 @@ class FeatureSerializer:
         tokenize_strings(result, columns, features, tokenizer=tokenizer or HowsoTokenizer())
 
         # Stringify any raw JSONs
-        stringify_json(result, columns, features)
+        stringify_json_feature(result, columns, features)
 
         return result
 
@@ -259,7 +257,7 @@ class FeatureSerializer:
         # column list holds the only reference to each value and they are freed once converted.
         for position in reversed(range(n_cols)):
             values = [row.pop() for row in rows]
-            arrays[position] = cls._to_array(values, columns[position], features, tokenizer)
+            arrays[position] = cls._to_array(columns[position], values, features=features, tokenizer=tokenizer)
             del values
         rows.clear()
         return cast(list[ColumnArray], arrays)
