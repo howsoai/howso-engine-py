@@ -43,10 +43,10 @@ from howso.utilities.utilities import (
 
 if TYPE_CHECKING:
     from howso.client.typing import (
+        DataTypeOverrides,
         FeatureAttributes,
         FeatureIntent,
         FeatureRareValueConfig,
-        OverrideIntent,
         FullPreserveRareValuesConfig,
         FeatureRareValues,
         PreserveRareValues,
@@ -104,7 +104,7 @@ value requires.
 FEATURE_INTENTS: frozenset[str] = frozenset({
     "boolean", "number", "date", "datetime", "time", "string", "tokenizable_string", "amalgam", "json", "yaml",
 })
-"""The intent descriptors accepted by ``override_intent``."""
+"""The intent descriptors accepted by ``data_type_overrides``."""
 
 DATE_TIME_INTENTS: frozenset[str] = frozenset({"date", "datetime", "time"})
 """The intent descriptors whose features are parsed as dates and/or times."""
@@ -123,20 +123,20 @@ No intent allows "ordinal", as ordinal features are processed according to ``ord
 """
 
 
-def _normalize_override_intent(
-    override_intent: OverrideIntent | None,
+def _normalize_data_type_overrides(
+    data_type_overrides: DataTypeOverrides | None,
 ) -> dict[str, FeatureIntent]:
     """
-    Get ``override_intent`` as a map of feature name to intent descriptor.
+    Get ``data_type_overrides`` as a map of feature name to intent descriptor.
 
-    `override_intent` maps either every feature name to an intent descriptor or every intent
+    `data_type_overrides` maps either every feature name to an intent descriptor or every intent
     descriptor to a collection of feature names. It is the latter when any of its values is a
     collection other than a string, so a feature may be named like an intent descriptor.
 
     Parameters
     ----------
-    override_intent : Mapping, optional
-        The ``override_intent`` given to :func:`infer_feature_attributes`.
+    data_type_overrides : Mapping, optional
+        The ``data_type_overrides`` given to :func:`infer_feature_attributes`.
 
     Returns
     -------
@@ -146,44 +146,45 @@ def _normalize_override_intent(
     Raises
     ------
     TypeError
-        If `override_intent` is not a mapping or mixes the two forms.
+        If `data_type_overrides` is not a mapping or mixes the two forms.
     ValueError
         If an intent descriptor is not recognized or a feature is given more than one intent.
     """
-    if override_intent is None:
+    if data_type_overrides is None:
         return {}
-    if not isinstance(override_intent, Mapping):
-        raise TypeError("`override_intent` must be a dict of feature names to intent descriptors or intent "
-                        f"descriptors to lists of feature names, not {type(override_intent).__name__}.")
+    if not isinstance(data_type_overrides, Mapping):
+        raise TypeError("`data_type_overrides` must be a dict of feature names to intent descriptors or intent "
+                        f"descriptors to lists of feature names, not {type(data_type_overrides).__name__}.")
 
     def is_feature_collection(value: Any) -> bool:
         return isinstance(value, Collection) and not isinstance(value, (str, bytes))
 
     pairs: list[tuple[Any, Any]]
-    if any(is_feature_collection(value) for value in override_intent.values()):
-        mixed = [key for key, value in override_intent.items() if not is_feature_collection(value)]
+    if any(is_feature_collection(value) for value in data_type_overrides.values()):
+        mixed = [key for key, value in data_type_overrides.items() if not is_feature_collection(value)]
         if mixed:
             names = ", ".join(f"`{key}`" for key in mixed)
-            raise TypeError("`override_intent` must map either every intent descriptor to a list of feature "
+            raise TypeError("`data_type_overrides` must map either every intent descriptor to a list of feature "
                             "names or every feature name to an intent descriptor, but these entries are not "
                             f"lists: {names}.")
-        pairs = [(feature, intent) for intent, features in override_intent.items() for feature in features]
+        pairs = [(feature, intent) for intent, features in data_type_overrides.items() for feature in features]
     else:
-        mixed = [key for key, value in override_intent.items() if not isinstance(value, str)]
+        mixed = [key for key, value in data_type_overrides.items() if not isinstance(value, str)]
         if mixed:
             names = ", ".join(f"`{key}`" for key in mixed)
-            raise TypeError("`override_intent` must map either every feature name to an intent descriptor or every "
-                            f"intent descriptor to a list of feature names, but these entries are neither: {names}.")
-        pairs = list(override_intent.items())
+            raise TypeError("`data_type_overrides` must map either every feature name to an intent descriptor or "
+                            "every intent descriptor to a list of feature names, but these entries are neither: "
+                            f"{names}.")
+        pairs = list(data_type_overrides.items())
 
     intents: dict[str, FeatureIntent] = {}
     for feature, intent in pairs:
         if intent not in FEATURE_INTENTS:
             valid = ", ".join(f'"{i}"' for i in sorted(FEATURE_INTENTS))
-            raise ValueError(f'`override_intent` gives the unrecognized intent "{intent}" for `{feature}`. '
+            raise ValueError(f'`data_type_overrides` gives the unrecognized intent "{intent}" for `{feature}`. '
                              f"Valid intents are: {valid}.")
         if intents.get(feature, intent) != intent:
-            raise ValueError(f'`override_intent` gives `{feature}` more than one intent: "{intents[feature]}" '
+            raise ValueError(f'`data_type_overrides` gives `{feature}` more than one intent: "{intents[feature]}" '
                              f'and "{intent}".')
         intents[feature] = cast("FeatureIntent", intent)
     return intents
@@ -1292,15 +1293,15 @@ class InferFeatureAttributesBase(ABC):
                 names = ", ".join(f"`{feature}`" for feature in unknown)
                 raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
 
-    def _validate_override_intent(
+    def _validate_data_type_overrides(
         self,
-        override_intent: OverrideIntent | None,
+        data_type_overrides: DataTypeOverrides | None,
         ordinal_feature_values: Mapping[str, Any] | None = None,
         datetime_feature_formats: Mapping[str, Any] | None = None,
         types: Mapping[str, str | Iterable[str]] | None = None,
     ) -> None:
         """
-        Check ``override_intent`` against the features in the data and the other parameters.
+        Check ``data_type_overrides`` against the features in the data and the other parameters.
 
         Called once, before features are processed in separate processes, so an error is raised once
         and a feature missing from a process's share of the columns is never mistaken for a typo.
@@ -1308,13 +1309,13 @@ class InferFeatureAttributesBase(ABC):
         Raises
         ------
         TypeError
-            If `override_intent` is of an unrecognized form.
+            If `data_type_overrides` is of an unrecognized form.
         ValueError
-            If `override_intent` names a feature that is not in the data, gives an unrecognized intent,
+            If `data_type_overrides` names a feature that is not in the data, gives an unrecognized intent,
             gives a feature more than one intent, or conflicts with `ordinal_feature_values`,
             `datetime_feature_formats`, or `types`.
         """
-        intents = _normalize_override_intent(override_intent)
+        intents = _normalize_data_type_overrides(data_type_overrides)
         preset_types: dict[str, str] = {}
         for key, value in (types or {}).items():
             if isinstance(value, str):
@@ -1325,27 +1326,28 @@ class InferFeatureAttributesBase(ABC):
         unknown = [feature for feature in intents if feature not in feature_names]
         if unknown:
             names = ", ".join(f"`{feature}`" for feature in unknown)
-            raise ValueError(f"`override_intent` names features that are not in the data: {names}.")
+            raise ValueError(f"`data_type_overrides` names features that are not in the data: {names}.")
         for feature, intent in intents.items():
             if feature in (ordinal_feature_values or {}):
-                raise ValueError(f"`{feature}` is given in both `override_intent` and `ordinal_feature_values`; "
+                raise ValueError(f"`{feature}` is given in both `data_type_overrides` and `ordinal_feature_values`; "
                                  "ordinal features are processed according to `ordinal_feature_values` only.")
             dt_format = (datetime_feature_formats or {}).get(feature)
             if intent in DATE_TIME_INTENTS and dt_format is False:
-                raise ValueError(f'`override_intent` gives `{feature}` the intent "{intent}", but '
+                raise ValueError(f'`data_type_overrides` gives `{feature}` the intent "{intent}", but '
                                  "`datetime_feature_formats` declares it as not a date/time.")
             if intent not in DATE_TIME_INTENTS and dt_format:
-                raise ValueError(f'`override_intent` gives `{feature}` the intent "{intent}", but '
+                raise ValueError(f'`data_type_overrides` gives `{feature}` the intent "{intent}", but '
                                  "`datetime_feature_formats` gives it a date/time format.")
             preset_type = preset_types.get(feature)
             if preset_type is not None and preset_type not in INTENT_FEATURE_TYPES[intent]:
                 allowed = " or ".join(f'"{t}"' for t in sorted(INTENT_FEATURE_TYPES[intent]))
-                raise ValueError(f'`override_intent` gives `{feature}` the intent "{intent}", but `types` gives it '
-                                 f'the type "{preset_type}". Features with this intent must be {allowed}.')
+                raise ValueError(f'`data_type_overrides` gives `{feature}` the intent "{intent}", but `types` gives '
+                                 f'it the type "{preset_type}". Features with this intent must be {allowed}.')
 
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
                  max_distilled_cases: int | None = None,
+                 data_type_overrides: DataTypeOverrides | None = None,
                  datetime_feature_formats: dict | None = None,
                  default_time_zone: str | None = None,
                  dependent_features: dict[str, list[str]] | None = None,
@@ -1362,7 +1364,6 @@ class InferFeatureAttributesBase(ABC):
                  num_series: int = 1,
                  nominal_substitution_config: dict[str, dict] | None = None,
                  ordinal_feature_values: dict[str, list[Any]] | None = None,
-                 override_intent: OverrideIntent | None = None,
                  preserve_rare_values: PreserveRareValues | None = None,
                  preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
                  preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
@@ -1394,7 +1395,7 @@ class InferFeatureAttributesBase(ABC):
         if dependent_features is None:
             dependent_features = dict()
 
-        intents = _normalize_override_intent(override_intent)
+        intents = _normalize_data_type_overrides(data_type_overrides)
 
         self.default_time_zone = default_time_zone
 
@@ -1855,7 +1856,7 @@ class InferFeatureAttributesBase(ABC):
         feature_type: FeatureType | None,
     ) -> dict:
         """
-        Get attributes for the given column according to its intent descriptor in ``override_intent``.
+        Get attributes for the given column according to its intent descriptor in ``data_type_overrides``.
 
         Parameters
         ----------

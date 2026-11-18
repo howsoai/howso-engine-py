@@ -34,7 +34,7 @@ from howso.utilities.utilities import (
 
 if t.TYPE_CHECKING:
     from howso.client.typing import (
-        OverrideIntent,
+        DataTypeOverrides,
         PreserveRareValues,
         PreserveRareValuesCaps,
     )
@@ -367,6 +367,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         self,
         attempt_infer_extended_nominals: bool = False,
         max_rows_to_eval: int = 10_000_000,
+        data_type_overrides: t.Optional[DataTypeOverrides] = None,
         datetime_feature_formats: t.Optional[dict] = None,
         default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,
@@ -387,7 +388,6 @@ class InferFeatureAttributesTimeSeries(ABC):
         num_lags: t.Optional[int | dict] = None,
         orders_of_derivatives: t.Optional[dict] = None,
         ordinal_feature_values: t.Optional[dict[str, list[t.Any]]] = None,
-        override_intent: t.Optional[OverrideIntent] = None,
         preserve_rare_values: t.Optional[PreserveRareValues] = None,
         preserve_rare_values_caps: t.Optional[PreserveRareValuesCaps] = None,
         preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
@@ -422,6 +422,10 @@ class InferFeatureAttributesTimeSeries(ABC):
             (Optional) If using a data source with streaming capabilities, sets the maximum number of
             rows to consider when inferring feature attributes where applicable. Useful for preventing
             excessive runtimes with very large data. If not provided, defaults to 10 million rows.
+
+        data_type_overrides : dict of str to list or str, optional
+            (Optional) Dict that configures how features are to be processed. See
+            ``infer_feature_attributes`` for details.
 
         datetime_feature_formats : dict, default None
             (Optional) Dict defining a custom (non-ISO8601) datetime format and
@@ -611,10 +615,6 @@ class InferFeatureAttributesTimeSeries(ABC):
                     "grade" : [ "F", "D", "C", "B", "A" ],
                     "size" : [ "small", "medium", "large", "huge" ]
                 }
-
-        override_intent : dict of str to list or str, optional
-            (Optional) Dict that configures how features are to be processed. See
-            ``infer_feature_attributes`` for details.
 
         preserve_rare_values : dict or list of str or "all" or "off", optional
             (Optional) The rare values to preserve during data distillation, so that their signal is
@@ -817,6 +817,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             max_rows_to_eval=max_rows_to_eval,
+            data_type_overrides=data_type_overrides,
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
@@ -833,7 +834,6 @@ class InferFeatureAttributesTimeSeries(ABC):
             nominal_substitution_config=nominal_substitution_config,
             num_series=num_series,
             ordinal_feature_values=ordinal_feature_values,
-            override_intent=override_intent,
             preserve_rare_values=preserve_rare_values,
             preserve_rare_values_caps=preserve_rare_values_caps,
             preserve_rare_values_distilled_min_cases=preserve_rare_values_distilled_min_cases,

@@ -691,11 +691,11 @@ FeatureIntent: TypeAlias = Literal[
     "json",
     "yaml",
 ]
-"""How :func:`~howso.utilities.infer_feature_attributes` is to process a feature, given in ``override_intent``."""
+"""How :func:`~howso.utilities.infer_feature_attributes` is to process a feature, given in ``data_type_overrides``."""
 
-OverrideIntent: TypeAlias = Union[Mapping[str, FeatureIntent], Mapping[FeatureIntent, Collection[str]]]
+DataTypeOverrides: TypeAlias = Union[Mapping[str, FeatureIntent], Mapping[FeatureIntent, Collection[str]]]
 """
-The accepted forms of ``override_intent``.
+The accepted forms of ``data_type_overrides``.
 
 Either every feature name mapped to an intent descriptor or every intent descriptor mapped to a
 collection of feature names.

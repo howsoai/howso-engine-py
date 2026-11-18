@@ -156,8 +156,8 @@ class DateIntentDropsTimeWarningEmitter(IFAWarningEmitter):
 
     def emit(self) -> None:
         """Emit the warning."""
-        warnings.warn('The following features hold datetimes but are given the "date" intent in `override_intent`: '
-                      f"{self.features_list}"
+        warnings.warn('The following features hold datetimes but are given the "date" intent in '
+                      f"`data_type_overrides`: {self.features_list}"
                       "Their values are trained as dates only; the time of day and time zone of each value are "
                       "dropped.", UserWarning, stacklevel=_user_stacklevel())
 
