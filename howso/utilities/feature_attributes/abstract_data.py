@@ -95,7 +95,7 @@ class InferFeatureAttributesAbstractData(InferFeatureAttributesBase):
         """Process and return feature attributes."""
         self._validate_rare_value_parameters(kwargs.get("preserve_rare_values"),
                                              kwargs.get("preserve_rare_values_caps"))
-        self._validate_data_type_overrides(kwargs.get("data_type_overrides"), kwargs.get("tokenizable_features"),
+        self._validate_data_type_parameters(kwargs.get("data_type_overrides"), kwargs.get("text_features"),
                                            kwargs.get("ordinal_feature_values"),
                                            kwargs.get("datetime_feature_formats"), kwargs.get("types"))
         # For Spark compute types, multiprocessing is less-performant.

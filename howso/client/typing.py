@@ -702,9 +702,9 @@ Either every feature name mapped to a data type descriptor or every data type de
 to a collection of feature names.
 """
 
-TokenizableFeatures: TypeAlias = Union[MutableSequence[str], tuple[str, ...], AbstractSet[str]]
+TextFeatures: TypeAlias = Union[MutableSequence[str], tuple[str, ...], AbstractSet[str]]
 """
-The names of the features that :func:`~howso.utilities.infer_feature_attributes` is to process as tokenizable strings.
+The names of the features that :func:`~howso.utilities.infer_feature_attributes` is to process as text.
 
 Any collection of names other than a string, which would be read as its characters.
 """

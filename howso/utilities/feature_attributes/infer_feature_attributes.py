@@ -28,7 +28,7 @@ if TYPE_CHECKING:
         FeatureType,
         PreserveRareValues,
         PreserveRareValuesCaps,
-        TokenizableFeatures,
+        TextFeatures,
     )
 
 class InferOptions(TypedDict, total=False):
@@ -57,8 +57,8 @@ class InferOptions(TypedDict, total=False):
     preserve_rare_values_distilled_min_cases: int
     preserve_rare_values_min_cases: int
     significance_threshold: int
+    text_features: TextFeatures
     tight_bounds: Iterable[str]
-    tokenizable_features: TokenizableFeatures
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
 
 
@@ -154,8 +154,8 @@ def infer_feature_attributes(
         Examples::
 
             {
-                "string": ["col_that_looks_tokenizable"],
-                "json": ["col_that_is_obvious_json", "col_that_isnt"],
+                "string": ["col_of_labels_that_look_like_json"],
+                "json": ["col_of_json_documents", "col_of_python_dicts"],
             }
 
             {
@@ -456,6 +456,13 @@ def infer_feature_attributes(
         normal. Disabling suggestions can meaningfully reduce runtime on large
         datasets when suggestions are not needed.
 
+    text_features : list of str, optional
+        (Optional) Names of features that hold text, such as reviews, comments or descriptions.
+        Their values are split into words for training and joined back together in predictions, so
+        values are compared word by word. Other string features given as "continuous" in `types` are
+        compared character by character. Given as a list, tuple or set of names, even for a single
+        feature.
+
     tight_bounds: Iterable of str, optional
         (Optional) Set tight min and max bounds for the features
         specified in the Iterable.
@@ -491,18 +498,14 @@ def infer_feature_attributes(
         one of 'rate', 'delta', or 'covariate'. Used to override ``time_series_type_default``
         for the specified features.
 
-    tokenizable_features : list of str, optional
-        (Optional) Names of features to process as tokenizable strings: continuous strings, such as
-        free text, that are split into tokens for training and joined back together in predictions.
-        A list, tuple or set of names, never a single name as a string.
-
     types: dict, optional
         (Optional) Dict of features and their intended type (i.e., "nominal,"
         "ordinal," or "continuous"), or types mapped to MutableSequences of
         feature names. Any types provided here will override the types that would
         otherwise be inferred, and will direct ``infer_feature_attributes`` to
         compute the attributes accordingly. Plain string features given as "continuous"
-        are compared by edit distance.
+        are compared character by character, by edit distance; to compare text word by
+        word, name it in ``text_features`` instead.
 
         Example::
 

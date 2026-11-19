@@ -37,7 +37,7 @@ if t.TYPE_CHECKING:
         DataTypeOverrides,
         PreserveRareValues,
         PreserveRareValuesCaps,
-        TokenizableFeatures,
+        TextFeatures,
     )
 
 logger = logging.getLogger(__name__)
@@ -395,11 +395,11 @@ class InferFeatureAttributesTimeSeries(ABC):
         preserve_rare_values_min_cases: int = PRESERVE_RARE_VALUES_MIN_CASES_DEFAULT,
         rate_boundaries: t.Optional[dict] = None,
         time_invariant_features: t.Optional[Iterable[str]] = None,
+        text_features: t.Optional[TextFeatures] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
         time_feature_is_universal: t.Optional[bool] = None,
         time_series_type_default: t.Optional[str] = "rate",
         time_series_types_override: t.Optional[dict] = None,
-        tokenizable_features: t.Optional[TokenizableFeatures] = None,
         types: t.Optional[dict[str, str] | dict[str, t.MutableSequence[str]]] = None,
     ) -> dict:
         """
@@ -698,6 +698,10 @@ class InferFeatureAttributesTimeSeries(ABC):
                     }
                 }
 
+        text_features : list of str, optional
+            (Optional) Names of features that hold text that can be tokenized. See
+            ``infer_feature_attributes`` for details.
+
         tight_bounds: Iterable of str, default None
             (Optional) Set tight min and max bounds for the features
             specified in the Iterable.
@@ -726,10 +730,6 @@ class InferFeatureAttributesTimeSeries(ABC):
             (Optional) Dict of features and their corresponding time series type,
             one of 'rate' or 'delta', used to override time_series_type_default
             for the specified features.
-
-        tokenizable_features : list of str, optional
-            (Optional) Names of features to process as tokenizable strings. See
-            ``infer_feature_attributes`` for details.
 
         types: dict, default None
             (Optional) Dict of features and their intended type (i.e., "nominal,"
@@ -844,8 +844,8 @@ class InferFeatureAttributesTimeSeries(ABC):
             preserve_rare_values_caps=preserve_rare_values_caps,
             preserve_rare_values_distilled_min_cases=preserve_rare_values_distilled_min_cases,
             preserve_rare_values_min_cases=preserve_rare_values_min_cases,
+            text_features=text_features,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
-            tokenizable_features=tokenizable_features,
             types=types,
         )
 

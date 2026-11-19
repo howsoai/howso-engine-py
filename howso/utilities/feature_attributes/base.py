@@ -54,7 +54,7 @@ if TYPE_CHECKING:
         PreserveRareValuesConfig,
         PreserveRareValuesMap,
         ProtectedValueMultiplier,
-        TokenizableFeatures,
+        TextFeatures,
     )
 
     RareValueReweighting = tuple[
@@ -191,14 +191,14 @@ def _normalize_data_type_overrides(
     return descriptors
 
 
-def _normalize_tokenizable_features(tokenizable_features: TokenizableFeatures | None) -> list[str]:
+def _normalize_text_features(text_features: TextFeatures | None) -> list[str]:
     """
-    Get ``tokenizable_features`` as a list of feature names.
+    Get ``text_features`` as a list of feature names.
 
     Parameters
     ----------
-    tokenizable_features : list, tuple or set of str, optional
-        The ``tokenizable_features`` given to :func:`infer_feature_attributes`.
+    text_features : list, tuple or set of str, optional
+        The ``text_features`` given to :func:`infer_feature_attributes`.
 
     Returns
     -------
@@ -208,14 +208,14 @@ def _normalize_tokenizable_features(tokenizable_features: TokenizableFeatures | 
     Raises
     ------
     TypeError
-        If `tokenizable_features` is a string or not a collection.
+        If `text_features` is a string or not a collection.
     """
-    if tokenizable_features is None:
+    if text_features is None:
         return []
-    if isinstance(tokenizable_features, (str, bytes)) or not isinstance(tokenizable_features, Collection):
-        raise TypeError("`tokenizable_features` must be a list of feature names, not "
-                        f"{type(tokenizable_features).__name__}.")
-    return list(dict.fromkeys(tokenizable_features))
+    if isinstance(text_features, (str, bytes)) or not isinstance(text_features, Collection):
+        raise TypeError("`text_features` must be a list of feature names, not "
+                        f"{type(text_features).__name__}.")
+    return list(dict.fromkeys(text_features))
 
 
 def _rare_value_features(preserve_rare_values: PreserveRareValues | None) -> list[str]:
@@ -1321,16 +1321,16 @@ class InferFeatureAttributesBase(ABC):
                 names = ", ".join(f"`{feature}`" for feature in unknown)
                 raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
 
-    def _validate_data_type_overrides(  # noqa: PLR0912
+    def _validate_data_type_parameters(  # noqa: PLR0912
         self,
         data_type_overrides: DataTypeOverrides | None,
-        tokenizable_features: TokenizableFeatures | None = None,
+        text_features: TextFeatures | None = None,
         ordinal_feature_values: Mapping[str, Any] | None = None,
         datetime_feature_formats: Mapping[str, Any] | None = None,
         types: Mapping[str, str | Iterable[str]] | None = None,
     ) -> None:
         """
-        Check ``data_type_overrides`` and ``tokenizable_features`` against the data and the other parameters.
+        Check ``data_type_overrides`` and ``text_features`` against the data and the other parameters.
 
         Called once, before features are processed in separate processes, so an error is raised once
         and a feature missing from a process's share of the columns is never mistaken for a typo.
@@ -1338,7 +1338,7 @@ class InferFeatureAttributesBase(ABC):
         Raises
         ------
         TypeError
-            If `data_type_overrides` or `tokenizable_features` is of an unrecognized form.
+            If `data_type_overrides` or `text_features` is of an unrecognized form.
         ValueError
             If either names a feature that is not in the data or that the other also names, if
             `data_type_overrides` gives an unrecognized descriptor or more than one descriptor for a
@@ -1346,7 +1346,7 @@ class InferFeatureAttributesBase(ABC):
             or `types`.
         """
         descriptors = _normalize_data_type_overrides(data_type_overrides)
-        tokenizable = _normalize_tokenizable_features(tokenizable_features)
+        text_feature_names = _normalize_text_features(text_features)
         preset_types: dict[str, str] = {}
         for key, value in (types or {}).items():
             if isinstance(value, str):
@@ -1354,15 +1354,15 @@ class InferFeatureAttributesBase(ABC):
             else:
                 preset_types.update(dict.fromkeys(value, key))
         feature_names = self._get_feature_names()
-        for parameter, features in (("data_type_overrides", descriptors), ("tokenizable_features", tokenizable)):
+        for parameter, features in (("data_type_overrides", descriptors), ("text_features", text_feature_names)):
             unknown = [feature for feature in features if feature not in feature_names]
             if unknown:
                 names = ", ".join(f"`{feature}`" for feature in unknown)
                 raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
-        both = [feature for feature in tokenizable if feature in descriptors]
+        both = [feature for feature in text_feature_names if feature in descriptors]
         if both:
             names = ", ".join(f"`{feature}`" for feature in both)
-            raise ValueError(f"These features are given in both `data_type_overrides` and `tokenizable_features`: "
+            raise ValueError(f"These features are given in both `data_type_overrides` and `text_features`: "
                              f"{names}.")
         for feature, descriptor in descriptors.items():
             if feature in (ordinal_feature_values or {}):
@@ -1380,17 +1380,17 @@ class InferFeatureAttributesBase(ABC):
                 allowed = " or ".join(f'"{t}"' for t in sorted(DESCRIPTOR_FEATURE_TYPES[descriptor]))
                 raise ValueError(f'`data_type_overrides` sets `{feature}` to "{descriptor}", but `types` gives it the '
                                  f'type "{preset_type}". Features set to "{descriptor}" must be {allowed}.')
-        for feature in tokenizable:
+        for feature in text_feature_names:
             if feature in (ordinal_feature_values or {}):
-                raise ValueError(f"`{feature}` is given in both `tokenizable_features` and `ordinal_feature_values`; "
+                raise ValueError(f"`{feature}` is given in both `text_features` and `ordinal_feature_values`; "
                                  "ordinal features are processed according to `ordinal_feature_values` only.")
             if (datetime_feature_formats or {}).get(feature):
-                raise ValueError(f"`tokenizable_features` names `{feature}`, but `datetime_feature_formats` gives it "
+                raise ValueError(f"`text_features` names `{feature}`, but `datetime_feature_formats` gives it "
                                  "a date/time format.")
             preset_type = preset_types.get(feature)
             if preset_type not in (None, "continuous"):
-                raise ValueError(f'`tokenizable_features` names `{feature}`, but `types` gives it the type '
-                                 f'"{preset_type}". Tokenizable features must be "continuous".')
+                raise ValueError(f'`text_features` names `{feature}`, but `types` gives it the type '
+                                 f'"{preset_type}". Text features must be "continuous".')
 
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
@@ -1416,8 +1416,8 @@ class InferFeatureAttributesBase(ABC):
                  preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
                  preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
                  preserve_rare_values_min_cases: int = PRESERVE_RARE_VALUES_MIN_CASES_DEFAULT,
+                 text_features: TextFeatures | None = None,
                  tight_bounds: Iterable[str] | None = None,
-                 tokenizable_features: TokenizableFeatures | None = None,
                  types: dict[str, str] | dict[str, MutableSequence[str]] | None = None,
                  ) -> dict:
         """
@@ -1445,7 +1445,7 @@ class InferFeatureAttributesBase(ABC):
             dependent_features = dict()
 
         descriptors = _normalize_data_type_overrides(data_type_overrides)
-        tokenizable = set(_normalize_tokenizable_features(tokenizable_features))
+        text_feature_names = set(_normalize_text_features(text_features))
 
         self.default_time_zone = default_time_zone
 
@@ -1518,8 +1518,8 @@ class InferFeatureAttributesBase(ABC):
                         "bounds": {"allowed": ordinal_feature_values[feature_name]}
                     }})
 
-            # EXPLICITLY DECLARED TOKENIZABLE STRINGS
-            elif feature_name in tokenizable:
+            # EXPLICITLY DECLARED TEXT FEATURES (tokenized into words)
+            elif feature_name in text_feature_names:
                 self.attributes = merge(self.attributes, {feature_name: {
                     "type": "continuous",
                     "data_type": "json",

@@ -1395,7 +1395,7 @@ def test_empty_string_first_non_nulls():
 
 
 def test_infer_tokenizable_string():
-    """Test that IFA correctly detects and sets feature attributes for short tokenizable text."""
+    """Test that IFA sets tokenizable string attributes for features named in `text_features`."""
     data = {
         "product": [
             "turbo-encabulator",
@@ -1415,7 +1415,7 @@ def test_infer_tokenizable_string():
         ],
     }
     df = pd.DataFrame(data)
-    feature_attributes = infer_feature_attributes(df, tokenizable_features=["review"], enable_suggestions=False)
+    feature_attributes = infer_feature_attributes(df, text_features=["review"], enable_suggestions=False)
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
@@ -2587,16 +2587,16 @@ def test_data_type_overrides_invalid(kwargs, error, match):
         infer_feature_attributes(df, **kwargs)
 
 
-@pytest.mark.parametrize("tokenizable_features", [["review"], ("review",), {"review"}])
-def test_tokenizable_features(tokenizable_features):
-    """Features named in `tokenizable_features` are continuous tokenizable strings."""
+@pytest.mark.parametrize("text_features", [["review"], ("review",), {"review"}])
+def test_text_features(text_features):
+    """Features named in `text_features` are continuous tokenizable strings."""
     df = pd.DataFrame({"review": ["a b c", "d e f"] * 5, "product": ["x", "y"] * 5})
-    features = infer_feature_attributes(df, tokenizable_features=tokenizable_features, enable_suggestions=False)
+    features = infer_feature_attributes(df, text_features=text_features, enable_suggestions=False)
     assert features["review"]["type"] == "continuous"
     assert features["review"]["data_type"] == "json"
     assert features["review"]["original_type"]["data_type"] == "tokenizable_string"
     assert features["product"]["data_type"] == "string"
-    features = infer_feature_attributes(df, tokenizable_features=["review"], types={"review": "continuous"},
+    features = infer_feature_attributes(df, text_features=["review"], types={"review": "continuous"},
                                         enable_suggestions=False)
     assert features["review"]["original_type"]["data_type"] == "tokenizable_string"
     features = infer_feature_attributes(df, types={"review": "continuous"}, enable_suggestions=False)
@@ -2605,19 +2605,19 @@ def test_tokenizable_features(tokenizable_features):
 
 
 @pytest.mark.parametrize(("kwargs", "error", "match"), [
-    ({"tokenizable_features": "feature"}, TypeError, "must be a list of feature names"),
-    ({"tokenizable_features": ["missing"]}, ValueError, "not in the data"),
-    ({"tokenizable_features": ["feature"], "data_type_overrides": {"feature": "string"}}, ValueError,
-     "both `data_type_overrides` and `tokenizable_features`"),
-    ({"tokenizable_features": ["feature"], "ordinal_feature_values": {"feature": ["a", "b"]}}, ValueError,
+    ({"text_features": "feature"}, TypeError, "must be a list of feature names"),
+    ({"text_features": ["missing"]}, ValueError, "not in the data"),
+    ({"text_features": ["feature"], "data_type_overrides": {"feature": "string"}}, ValueError,
+     "both `data_type_overrides` and `text_features`"),
+    ({"text_features": ["feature"], "ordinal_feature_values": {"feature": ["a", "b"]}}, ValueError,
      "ordinal_feature_values"),
-    ({"tokenizable_features": ["feature"], "datetime_feature_formats": {"feature": "%Y"}}, ValueError,
+    ({"text_features": ["feature"], "datetime_feature_formats": {"feature": "%Y"}}, ValueError,
      "gives it a date/time format"),
-    ({"tokenizable_features": ["feature"], "types": {"nominal": ["feature"]}}, ValueError,
+    ({"text_features": ["feature"], "types": {"nominal": ["feature"]}}, ValueError,
      'must be "continuous"'),
 ])
-def test_tokenizable_features_invalid(kwargs, error, match):
-    """Invalid `tokenizable_features` values and conflicts with other parameters raise errors."""
+def test_text_features_invalid(kwargs, error, match):
+    """Invalid `text_features` values and conflicts with other parameters raise errors."""
     df = pd.DataFrame({"feature": ["a", "b"] * 5})
     with pytest.raises(error, match=match):
         infer_feature_attributes(df, **kwargs)
