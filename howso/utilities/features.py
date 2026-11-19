@@ -63,6 +63,88 @@ class FeatureType(Enum):
         return str(self.value)
 
 
+def stringify_json_feature(
+    cases: list[list[Any]],
+    features: Iterable[str],
+    feature_attributes: Mapping[str, Any],
+) -> None:
+    """
+    Ensure that any JSON features have their cases stringified.
+
+    Null values are left as-is so that they are sent to the engine as nulls rather than as the
+    JSON string "null".
+
+    Parameters
+    ----------
+    cases : list of list of Any
+        A 2d list of case values corresponding to the provided feature names.
+    features : list of str
+        The list of feature names, corresponding to the columns in the 2d case list.
+    feature_attributes : Mapping
+        The feature attributes of the provided features.
+    """
+    for idx, feature_name in enumerate(features):
+        if feature_attributes.get(feature_name, {}).get("data_type") == "json":
+            orig_type_info = feature_attributes[feature_name].get("original_type", {})
+            # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
+            if orig_type_info.get("data_type", {}) in ["container", "tokenizable_string"]:
+                coerce_set = orig_type_info.get("coercion") == "set"
+                for case_group in cases:
+                    value = case_group[idx]
+                    if is_null_value(value):
+                        case_group[idx] = None
+                        continue
+                    if coerce_set:
+                        # If an original type indicates a set, convert to list for serialization
+                        value = list(value)
+                    case_group[idx] = json.dumps(value)
+
+
+def destringify_json_feature(
+    cases: Sequence[Any] | np.ndarray | pd.Series,
+    feature_attributes: Mapping[str, Any],
+    *,
+    tokenizer: TokenizerProtocol | None = None,
+) -> list[Any]:
+    """
+    Ensure that any JSON features have their cases de-stringified.
+
+    Null values are returned as None. A null may arrive either directly as a null value or JSON
+    encoded as the literal ``null`` (which `json.loads` decodes to None).
+
+    Parameters
+    ----------
+    cases : Sequence or numpy.ndarray or pandas.Series
+        The sequence of case values.
+    feature_attributes : Mapping
+        The feature attributes of the feature to which the provided cases belong.
+    tokenizer : TokenizerProtocol, optional
+        A tokenizer to allow detokenizing strings.
+        Only applies to features whose original data type is "tokenizable_string".
+    """
+    destringified_cases = []
+    typing_info = feature_attributes.get("original_type", {}) or {}
+    is_set = typing_info.get("coercion") == "set"
+    is_tokenized = typing_info.get("data_type") == "tokenizable_string"
+
+    for case_to_destringify in cases:
+        if is_null_value(case_to_destringify):
+            destringified_cases.append(None)
+            continue
+        if isinstance(case_to_destringify, (str, bytes, bytearray)):
+            # The JSON literal ``null`` decodes to None, which cannot be coerced any further
+            formatted_case = json.loads(case_to_destringify)
+        else:
+            formatted_case = case_to_destringify
+        if formatted_case is not None:
+            if is_tokenized and tokenizer is not None:
+                formatted_case = tokenizer.detokenize(formatted_case)
+            elif is_set:
+                formatted_case = set(formatted_case)
+        destringified_cases.append(formatted_case)
+    return destringified_cases
+
+
 class FeatureSerializer:
     """Adapter for serialization and deserialization of feature data."""
 
@@ -200,7 +282,7 @@ class FeatureSerializer:
 
         Parameters
         ----------
-        data : list of list or list of dict
+        data : list of list
             The context data.
         columns : Sequence of str, optional
             The case column mapping. The order corresponds to the order of cases in output.
@@ -386,7 +468,7 @@ class FeatureSerializer:
         return values
 
     @classmethod
-    def format_timedelta_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_timedelta_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format timedelta column.
 
@@ -423,7 +505,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_datetime_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_datetime_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format datetime column.
 
@@ -502,7 +584,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_date_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_date_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format date only column.
 
@@ -546,7 +628,7 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_time_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_time_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format time only column.
 
@@ -584,7 +666,7 @@ class FeatureSerializer:
         return column.apply(partial(seconds_to_time, tzinfo=tz))
 
     @classmethod
-    def format_boolean_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003
+    def format_boolean_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003
         """
         Format boolean column.
 
@@ -615,7 +697,7 @@ class FeatureSerializer:
             return column
 
     @classmethod
-    def format_integer_column(cls, column: pd.Series, feature: Mapping[str, Any]) -> pd.Series:
+    def format_integer_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
         """
         Format integer column.
 
@@ -699,37 +781,32 @@ class FeatureSerializer:
             The formatted column.
         """
         typing_info = cls._get_typing_info(feature)
-        number_format = typing_info.get("format")
         type_name = "float"
 
         try:
-            if number_format == "decimal":
+            if typing_info.get("format") == "decimal":
                 type_name = "Decimal"
-                # Note: We cast to string first here in attempt to prevent
-                # floating point errors.
-                return column.apply(lambda x: decimal.Decimal(str(x)) if x is not None else None)
-            else:
+                # Note: We cast to string first here in attempt to prevent floating point errors.
+                values = [decimal.Decimal(str(x)) if x is not None else None for x in values]
+                return cls._to_series(name, values, index)
+
+            if feature.get("subtype") == "int-id" or feature.get("unique"):
+                # unique or int-id features are output as 64bit ints, leave as-is ignore original type size
                 type_name = "float"
+            else:
                 size = typing_info.get("size")
-                if size in [1, 2, 4, 8, 16]:
-                    type_name = f"{type_name}{size * 8}"
+                type_name = f"float{size * 8}" if size in {1, 2, 4, 8, 16} else "float"
 
-                # unique or int-id features are output as 64bit ints, leave them
-                # as-is if original datatype is less than 64 bits
-                if (
-                    size is not None
-                    and size < 8
-                    and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id")
-                ):
-                    warnings.warn(
-                        f'Unable to restore column "{column.name}" as {type_name}. Column will retain current dtype.'
-                    )
-                    return column
+            if isinstance(values, pd.Series):
+                values = values.astype(np.dtype(type_name))
+                return cls._to_series(name, values, index, copy=False)
 
-                return column.astype(cast(np.dtype, type_name))
+            return cls._to_series(name, values, index)
         except Exception:  # noqa: BLE001
-            warnings.warn(f'Unable to parse column "{column.name}" as {type_name}. Column will retain current dtype.')
-            return column
+            warnings.warn(
+                f'Unable to parse column "{name}" as {type_name}. Column will retain current dtype.', stacklevel=3
+            )
+            return cls.format_unknown_column(values, feature, name=name, index=index)
 
     @classmethod
     def format_string_column(
