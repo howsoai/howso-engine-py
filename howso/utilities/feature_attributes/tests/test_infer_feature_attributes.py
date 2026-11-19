@@ -1313,13 +1313,13 @@ def test_datetime_feature_formats_false_compact_dates(values, expected_data_type
 
 
 def test_datetime_feature_formats_false_with_continuous_type():
-    """Test that a `False` datetime format with a preset continuous type yields a tokenizable string."""
+    """Test that a `False` datetime format with a preset continuous type yields an edit distance string."""
     df = pd.DataFrame({"label": ["2020-01-01", "2020-01-02", "2020-01-03"]})
     features = infer_feature_attributes(df, datetime_feature_formats={"label": False},
                                         types={"label": "continuous"}, enable_suggestions=False)
     assert features["label"]["type"] == "continuous"
-    assert features["label"]["data_type"] == "json"
-    assert features["label"]["original_type"]["data_type"] == FeatureType.TOKENIZABLE_STRING.value
+    assert features["label"]["data_type"] == "string"
+    assert features["label"]["original_type"]["data_type"] == "string"
 
 
 def test_datetime_feature_formats_false_native_datetime():
@@ -1415,7 +1415,7 @@ def test_infer_tokenizable_string():
         ],
     }
     df = pd.DataFrame(data)
-    feature_attributes = infer_feature_attributes(df, types={"continuous": ["review"]}, enable_suggestions=False)
+    feature_attributes = infer_feature_attributes(df, tokenizable_features=["review"], enable_suggestions=False)
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
@@ -2487,8 +2487,6 @@ def test_data_type_overrides_edit_distance_strings(data_type_overrides):
                                                                            "unit": "seconds"}}),
     (list(range(10)), "timedelta", {"type": "continuous", "data_type": "number",
                                     "original_type": {"data_type": "timedelta", "unit": "seconds"}}),
-    (["a b c", "d e f"] * 5, "tokenizable_string", {"type": "continuous", "data_type": "json",
-                                                    "original_type": {"data_type": "tokenizable_string"}}),
     ([f"(+ 1 {i})" for i in range(10)], "amalgam", {"type": "continuous", "data_type": "amalgam"}),
     ([f"a: {i}" for i in range(10)], "yaml", {"type": "continuous", "data_type": "yaml"}),
     ([f'{{"a": {i}}}' for i in range(10)], "json", {"type": "continuous", "data_type": "json"}),
@@ -2524,7 +2522,6 @@ def test_data_type_overrides_feature_named_like_descriptor():
     ("string", "nominal"),
     ("string", "continuous"),
     ("string_mixable", "continuous"),
-    ("tokenizable_string", "continuous"),
     ("number", "nominal"),
     ("json", "continuous"),
 ])
@@ -2581,11 +2578,46 @@ def test_data_type_overrides_uses_datetime_format():
     ({"data_type_overrides": {"feature": "boolean"}, "types": {"continuous": ["feature"]}}, ValueError, "must be"),
     ({"data_type_overrides": {"string_mixable": ["feature"]}, "types": {"feature": "nominal"}}, ValueError,
      "must be"),
-    ({"data_type_overrides": {"feature": "tokenizable_string"}, "types": {"feature": "nominal"}},
-     ValueError, "must be"),
+    ({"data_type_overrides": {"feature": "tokenizable_string"}}, ValueError, "unrecognized data type descriptor"),
 ])
 def test_data_type_overrides_invalid(kwargs, error, match):
     """Invalid `data_type_overrides` values and conflicts with other parameters raise errors."""
+    df = pd.DataFrame({"feature": ["a", "b"] * 5})
+    with pytest.raises(error, match=match):
+        infer_feature_attributes(df, **kwargs)
+
+
+@pytest.mark.parametrize("tokenizable_features", [["review"], ("review",), {"review"}])
+def test_tokenizable_features(tokenizable_features):
+    """Features named in `tokenizable_features` are continuous tokenizable strings."""
+    df = pd.DataFrame({"review": ["a b c", "d e f"] * 5, "product": ["x", "y"] * 5})
+    features = infer_feature_attributes(df, tokenizable_features=tokenizable_features, enable_suggestions=False)
+    assert features["review"]["type"] == "continuous"
+    assert features["review"]["data_type"] == "json"
+    assert features["review"]["original_type"]["data_type"] == "tokenizable_string"
+    assert features["product"]["data_type"] == "string"
+    features = infer_feature_attributes(df, tokenizable_features=["review"], types={"review": "continuous"},
+                                        enable_suggestions=False)
+    assert features["review"]["original_type"]["data_type"] == "tokenizable_string"
+    features = infer_feature_attributes(df, types={"review": "continuous"}, enable_suggestions=False)
+    assert features["review"]["data_type"] == "string"
+    assert features["review"]["original_type"]["data_type"] == "string"
+
+
+@pytest.mark.parametrize(("kwargs", "error", "match"), [
+    ({"tokenizable_features": "feature"}, TypeError, "must be a list of feature names"),
+    ({"tokenizable_features": ["missing"]}, ValueError, "not in the data"),
+    ({"tokenizable_features": ["feature"], "data_type_overrides": {"feature": "string"}}, ValueError,
+     "both `data_type_overrides` and `tokenizable_features`"),
+    ({"tokenizable_features": ["feature"], "ordinal_feature_values": {"feature": ["a", "b"]}}, ValueError,
+     "ordinal_feature_values"),
+    ({"tokenizable_features": ["feature"], "datetime_feature_formats": {"feature": "%Y"}}, ValueError,
+     "gives it a date/time format"),
+    ({"tokenizable_features": ["feature"], "types": {"nominal": ["feature"]}}, ValueError,
+     'must be "continuous"'),
+])
+def test_tokenizable_features_invalid(kwargs, error, match):
+    """Invalid `tokenizable_features` values and conflicts with other parameters raise errors."""
     df = pd.DataFrame({"feature": ["a", "b"] * 5})
     with pytest.raises(error, match=match):
         infer_feature_attributes(df, **kwargs)

@@ -37,6 +37,7 @@ if t.TYPE_CHECKING:
         DataTypeOverrides,
         PreserveRareValues,
         PreserveRareValuesCaps,
+        TokenizableFeatures,
     )
 
 logger = logging.getLogger(__name__)
@@ -398,6 +399,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         time_feature_is_universal: t.Optional[bool] = None,
         time_series_type_default: t.Optional[str] = "rate",
         time_series_types_override: t.Optional[dict] = None,
+        tokenizable_features: t.Optional[TokenizableFeatures] = None,
         types: t.Optional[dict[str, str] | dict[str, t.MutableSequence[str]]] = None,
     ) -> dict:
         """
@@ -725,6 +727,10 @@ class InferFeatureAttributesTimeSeries(ABC):
             one of 'rate' or 'delta', used to override time_series_type_default
             for the specified features.
 
+        tokenizable_features : list of str, optional
+            (Optional) Names of features to process as tokenizable strings. See
+            ``infer_feature_attributes`` for details.
+
         types: dict, default None
             (Optional) Dict of features and their intended type (i.e., "nominal,"
             "ordinal," or "continuous"), or types mapped to MutableSequences of
@@ -839,6 +845,7 @@ class InferFeatureAttributesTimeSeries(ABC):
             preserve_rare_values_distilled_min_cases=preserve_rare_values_distilled_min_cases,
             preserve_rare_values_min_cases=preserve_rare_values_min_cases,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
+            tokenizable_features=tokenizable_features,
             types=types,
         )
 

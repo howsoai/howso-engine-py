@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         FeatureType,
         PreserveRareValues,
         PreserveRareValuesCaps,
+        TokenizableFeatures,
     )
 
 class InferOptions(TypedDict, total=False):
@@ -57,6 +58,7 @@ class InferOptions(TypedDict, total=False):
     preserve_rare_values_min_cases: int
     significance_threshold: int
     tight_bounds: Iterable[str]
+    tokenizable_features: TokenizableFeatures
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
 
 
@@ -145,7 +147,6 @@ def infer_feature_attributes(
         - "string" : Strings, compared by edit distance when given as "continuous" in `types`
         - "string_mixable" : Continuous strings whose predicted values may mix characters from
           multiple original values
-        - "tokenizable_string" : Continuous tokenizable strings
         - "amalgam" : Amalgam language code
         - "json" : Valid JSON
         - "yaml" : Valid YAML
@@ -490,12 +491,18 @@ def infer_feature_attributes(
         one of 'rate', 'delta', or 'covariate'. Used to override ``time_series_type_default``
         for the specified features.
 
+    tokenizable_features : list of str, optional
+        (Optional) Names of features to process as tokenizable strings: continuous strings, such as
+        free text, that are split into tokens for training and joined back together in predictions.
+        A list, tuple or set of names, never a single name as a string.
+
     types: dict, optional
         (Optional) Dict of features and their intended type (i.e., "nominal,"
         "ordinal," or "continuous"), or types mapped to MutableSequences of
         feature names. Any types provided here will override the types that would
         otherwise be inferred, and will direct ``infer_feature_attributes`` to
-        compute the attributes accordingly.
+        compute the attributes accordingly. Plain string features given as "continuous"
+        are compared by edit distance.
 
         Example::
 

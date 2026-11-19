@@ -87,8 +87,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         """Process and return feature attributes."""
         self._validate_rare_value_parameters(kwargs.get("preserve_rare_values"),
                                              kwargs.get("preserve_rare_values_caps"))
-        self._validate_data_type_overrides(kwargs.get("data_type_overrides"), kwargs.get("ordinal_feature_values"),
-                                       kwargs.get("datetime_feature_formats"), kwargs.get("types"))
+        self._validate_data_type_overrides(kwargs.get("data_type_overrides"), kwargs.get("tokenizable_features"),
+                                           kwargs.get("ordinal_feature_values"),
+                                           kwargs.get("datetime_feature_formats"), kwargs.get("types"))
         max_workers = kwargs.pop("max_workers", None)
         # The default with be to not use multiprocessing if the product of rows
         # and columns is less than 25M.

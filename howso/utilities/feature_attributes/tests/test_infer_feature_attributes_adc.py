@@ -659,7 +659,7 @@ def test_infer_tokenizable_string(adc):
     }
     df = pd.DataFrame(data)
     convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(adc, types={"continuous": ["review"]}, enable_suggestions=False)
+    feature_attributes = infer_feature_attributes(adc, tokenizable_features=["review"], enable_suggestions=False)
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"

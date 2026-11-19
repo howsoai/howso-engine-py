@@ -54,6 +54,7 @@ if TYPE_CHECKING:
         PreserveRareValuesConfig,
         PreserveRareValuesMap,
         ProtectedValueMultiplier,
+        TokenizableFeatures,
     )
 
     RareValueReweighting = tuple[
@@ -102,8 +103,8 @@ value requires.
 """
 
 DATA_TYPE_DESCRIPTORS: frozenset[str] = frozenset({
-    "boolean", "number", "date", "datetime", "time", "timedelta", "string", "string_mixable", "tokenizable_string",
-    "amalgam", "json", "yaml",
+    "boolean", "number", "date", "datetime", "time", "timedelta", "string", "string_mixable", "amalgam",
+    "json", "yaml",
 })
 """The data type descriptors accepted by ``data_type_overrides``."""
 
@@ -115,7 +116,6 @@ DESCRIPTOR_FEATURE_TYPES: dict[str, frozenset[str]] = dict.fromkeys(
 ) | {
     "boolean": frozenset({"nominal"}),
     "string_mixable": frozenset({"continuous"}),
-    "tokenizable_string": frozenset({"continuous"}),
 }
 """
 The feature types that may be given in ``types`` for a feature with each data type descriptor.
@@ -189,6 +189,33 @@ def _normalize_data_type_overrides(
                              f'"{descriptors[feature]}" and "{descriptor}".')
         descriptors[feature] = cast("DataTypeDescriptor", descriptor)
     return descriptors
+
+
+def _normalize_tokenizable_features(tokenizable_features: TokenizableFeatures | None) -> list[str]:
+    """
+    Get ``tokenizable_features`` as a list of feature names.
+
+    Parameters
+    ----------
+    tokenizable_features : list, tuple or set of str, optional
+        The ``tokenizable_features`` given to :func:`infer_feature_attributes`.
+
+    Returns
+    -------
+    list of str
+        The named features, each listed once.
+
+    Raises
+    ------
+    TypeError
+        If `tokenizable_features` is a string or not a collection.
+    """
+    if tokenizable_features is None:
+        return []
+    if isinstance(tokenizable_features, (str, bytes)) or not isinstance(tokenizable_features, Collection):
+        raise TypeError("`tokenizable_features` must be a list of feature names, not "
+                        f"{type(tokenizable_features).__name__}.")
+    return list(dict.fromkeys(tokenizable_features))
 
 
 def _rare_value_features(preserve_rare_values: PreserveRareValues | None) -> list[str]:
@@ -1294,15 +1321,16 @@ class InferFeatureAttributesBase(ABC):
                 names = ", ".join(f"`{feature}`" for feature in unknown)
                 raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
 
-    def _validate_data_type_overrides(
+    def _validate_data_type_overrides(  # noqa: PLR0912
         self,
         data_type_overrides: DataTypeOverrides | None,
+        tokenizable_features: TokenizableFeatures | None = None,
         ordinal_feature_values: Mapping[str, Any] | None = None,
         datetime_feature_formats: Mapping[str, Any] | None = None,
         types: Mapping[str, str | Iterable[str]] | None = None,
     ) -> None:
         """
-        Check ``data_type_overrides`` against the features in the data and the other parameters.
+        Check ``data_type_overrides`` and ``tokenizable_features`` against the data and the other parameters.
 
         Called once, before features are processed in separate processes, so an error is raised once
         and a feature missing from a process's share of the columns is never mistaken for a typo.
@@ -1310,13 +1338,15 @@ class InferFeatureAttributesBase(ABC):
         Raises
         ------
         TypeError
-            If `data_type_overrides` is of an unrecognized form.
+            If `data_type_overrides` or `tokenizable_features` is of an unrecognized form.
         ValueError
-            If `data_type_overrides` names a feature that is not in the data, gives an unrecognized
-            descriptor, gives a feature more than one descriptor, or conflicts with
-            `ordinal_feature_values`, `datetime_feature_formats`, or `types`.
+            If either names a feature that is not in the data or that the other also names, if
+            `data_type_overrides` gives an unrecognized descriptor or more than one descriptor for a
+            feature, or if either conflicts with `ordinal_feature_values`, `datetime_feature_formats`,
+            or `types`.
         """
         descriptors = _normalize_data_type_overrides(data_type_overrides)
+        tokenizable = _normalize_tokenizable_features(tokenizable_features)
         preset_types: dict[str, str] = {}
         for key, value in (types or {}).items():
             if isinstance(value, str):
@@ -1324,10 +1354,16 @@ class InferFeatureAttributesBase(ABC):
             else:
                 preset_types.update(dict.fromkeys(value, key))
         feature_names = self._get_feature_names()
-        unknown = [feature for feature in descriptors if feature not in feature_names]
-        if unknown:
-            names = ", ".join(f"`{feature}`" for feature in unknown)
-            raise ValueError(f"`data_type_overrides` names features that are not in the data: {names}.")
+        for parameter, features in (("data_type_overrides", descriptors), ("tokenizable_features", tokenizable)):
+            unknown = [feature for feature in features if feature not in feature_names]
+            if unknown:
+                names = ", ".join(f"`{feature}`" for feature in unknown)
+                raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
+        both = [feature for feature in tokenizable if feature in descriptors]
+        if both:
+            names = ", ".join(f"`{feature}`" for feature in both)
+            raise ValueError(f"These features are given in both `data_type_overrides` and `tokenizable_features`: "
+                             f"{names}.")
         for feature, descriptor in descriptors.items():
             if feature in (ordinal_feature_values or {}):
                 raise ValueError(f"`{feature}` is given in both `data_type_overrides` and `ordinal_feature_values`; "
@@ -1344,6 +1380,17 @@ class InferFeatureAttributesBase(ABC):
                 allowed = " or ".join(f'"{t}"' for t in sorted(DESCRIPTOR_FEATURE_TYPES[descriptor]))
                 raise ValueError(f'`data_type_overrides` sets `{feature}` to "{descriptor}", but `types` gives it the '
                                  f'type "{preset_type}". Features set to "{descriptor}" must be {allowed}.')
+        for feature in tokenizable:
+            if feature in (ordinal_feature_values or {}):
+                raise ValueError(f"`{feature}` is given in both `tokenizable_features` and `ordinal_feature_values`; "
+                                 "ordinal features are processed according to `ordinal_feature_values` only.")
+            if (datetime_feature_formats or {}).get(feature):
+                raise ValueError(f"`tokenizable_features` names `{feature}`, but `datetime_feature_formats` gives it "
+                                 "a date/time format.")
+            preset_type = preset_types.get(feature)
+            if preset_type not in (None, "continuous"):
+                raise ValueError(f'`tokenizable_features` names `{feature}`, but `types` gives it the type '
+                                 f'"{preset_type}". Tokenizable features must be "continuous".')
 
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
@@ -1370,6 +1417,7 @@ class InferFeatureAttributesBase(ABC):
                  preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
                  preserve_rare_values_min_cases: int = PRESERVE_RARE_VALUES_MIN_CASES_DEFAULT,
                  tight_bounds: Iterable[str] | None = None,
+                 tokenizable_features: TokenizableFeatures | None = None,
                  types: dict[str, str] | dict[str, MutableSequence[str]] | None = None,
                  ) -> dict:
         """
@@ -1397,6 +1445,7 @@ class InferFeatureAttributesBase(ABC):
             dependent_features = dict()
 
         descriptors = _normalize_data_type_overrides(data_type_overrides)
+        tokenizable = set(_normalize_tokenizable_features(tokenizable_features))
 
         self.default_time_zone = default_time_zone
 
@@ -1468,6 +1517,14 @@ class InferFeatureAttributesBase(ABC):
                         "type": "ordinal",
                         "bounds": {"allowed": ordinal_feature_values[feature_name]}
                     }})
+
+            # EXPLICITLY DECLARED TOKENIZABLE STRINGS
+            elif feature_name in tokenizable:
+                self.attributes = merge(self.attributes, {feature_name: {
+                    "type": "continuous",
+                    "data_type": "json",
+                    "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
+                }})
 
             # EXPLICITLY DECLARED DATA TYPES (date/time descriptors with a declared format are parsed by it below)
             elif feature_name in descriptors and not (
@@ -1822,26 +1879,7 @@ class InferFeatureAttributesBase(ABC):
                 "type": "continuous",
                 "data_type": "yaml"
             }
-        # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
-        # but that may also be the case for string ints or floats. Check that first.
-        is_tokenizable_string = False
-        if self.attributes.get(feature_name, {}).get("type") == "continuous":
-            try:
-                # If the column can be converted to float, and was set to be "continuous",
-                # it is probably not a tokenizable string.
-                col = self.data[feature_name]
-                col.astype("float")
-            except Exception:  # noqa: Intentionally broad
-                # If it cannot be converted to float, but it was set to be "continuous",
-                # it is probably a tokenizable string.
-                is_tokenizable_string = True
-        if is_tokenizable_string:
-            return {
-                "type": "continuous",
-                "data_type": "json",
-                # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
-                "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
-            }
+        # A string feature given as "continuous" in `types` keeps that type and is compared by edit distance.
         return self._infer_unknown_attributes(feature_name)
 
     def _infer_json_attributes(self, feature_name: str) -> dict:
@@ -1927,12 +1965,6 @@ class InferFeatureAttributesBase(ABC):
             return {"type": "nominal", "data_type": "string"}
         if descriptor == "string_mixable":
             return {"type": "continuous", "data_type": "string_mixable"}
-        if descriptor == "tokenizable_string":
-            return {
-                "type": "continuous",
-                "data_type": "json",
-                "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
-            }
         if descriptor == "amalgam":
             return {"type": "continuous", "data_type": "amalgam"}
         if descriptor == "yaml":
