@@ -43,7 +43,9 @@ from howso.utilities.utilities import (
 
 if TYPE_CHECKING:
     from howso.client.typing import (
+        DataTypeOverrides,
         FeatureAttributes,
+        DataTypeDescriptor,
         FeatureRareValueConfig,
         FullPreserveRareValuesConfig,
         FeatureRareValues,
@@ -52,6 +54,7 @@ if TYPE_CHECKING:
         PreserveRareValuesConfig,
         PreserveRareValuesMap,
         ProtectedValueMultiplier,
+        TextFeatures,
     )
 
     RareValueReweighting = tuple[
@@ -98,6 +101,121 @@ Applies to a feature listed in ``preserve_rare_values_caps`` without a cap of it
 that is not listed has no cap: its significant values give up as much as preserving every rare
 value requires.
 """
+
+DATA_TYPE_DESCRIPTORS: frozenset[str] = frozenset({
+    "boolean", "number", "date", "datetime", "time", "timedelta", "string", "string_mixable", "amalgam",
+    "json", "yaml",
+})
+"""The data type descriptors accepted by ``data_type_overrides``."""
+
+DATE_TIME_DESCRIPTORS: frozenset[str] = frozenset({"date", "datetime", "time"})
+"""The data type descriptors whose features are parsed as dates and/or times."""
+
+DESCRIPTOR_FEATURE_TYPES: dict[str, frozenset[str]] = dict.fromkeys(
+    DATA_TYPE_DESCRIPTORS, frozenset({"nominal", "continuous"})
+) | {
+    "boolean": frozenset({"nominal"}),
+    "string_mixable": frozenset({"continuous"}),
+}
+"""
+The feature types that may be given in ``types`` for a feature with each data type descriptor.
+
+No descriptor allows "ordinal", as ordinal features are processed according to ``ordinal_feature_values`` only.
+"""
+
+
+def _normalize_data_type_overrides(
+    data_type_overrides: DataTypeOverrides | None,
+) -> dict[str, DataTypeDescriptor]:
+    """
+    Get ``data_type_overrides`` as a map of feature name to data type descriptor.
+
+    `data_type_overrides` maps either every feature name to a data type descriptor or every
+    descriptor to a collection of feature names. It is the latter when any of its values is a
+    collection other than a string, so a feature may be named like a descriptor.
+
+    Parameters
+    ----------
+    data_type_overrides : Mapping, optional
+        The ``data_type_overrides`` given to :func:`infer_feature_attributes`.
+
+    Returns
+    -------
+    dict of str to str
+        The data type descriptor of each named feature.
+
+    Raises
+    ------
+    TypeError
+        If `data_type_overrides` is not a mapping or mixes the two forms.
+    ValueError
+        If a descriptor is not recognized or a feature is given more than one descriptor.
+    """
+    if data_type_overrides is None:
+        return {}
+    if not isinstance(data_type_overrides, Mapping):
+        raise TypeError("`data_type_overrides` must be a dict of feature names to data type descriptors or data type "
+                        f"descriptors to lists of feature names, not {type(data_type_overrides).__name__}.")
+
+    def is_feature_collection(value: Any) -> bool:
+        return isinstance(value, Collection) and not isinstance(value, (str, bytes))
+
+    pairs: list[tuple[Any, Any]]
+    if any(is_feature_collection(value) for value in data_type_overrides.values()):
+        mixed = [key for key, value in data_type_overrides.items() if not is_feature_collection(value)]
+        if mixed:
+            names = ", ".join(f"`{key}`" for key in mixed)
+            raise TypeError("`data_type_overrides` must map either every data type descriptor to a list of feature "
+                            "names or every feature name to a data type descriptor, but these entries are not "
+                            f"lists: {names}.")
+        pairs = [(feature, descriptor) for descriptor, features in data_type_overrides.items() for feature in features]
+    else:
+        mixed = [key for key, value in data_type_overrides.items() if not isinstance(value, str)]
+        if mixed:
+            names = ", ".join(f"`{key}`" for key in mixed)
+            raise TypeError("`data_type_overrides` must map either every feature name to a data type descriptor or "
+                            "every data type descriptor to a list of feature names, but these entries are neither: "
+                            f"{names}.")
+        pairs = list(data_type_overrides.items())
+
+    descriptors: dict[str, DataTypeDescriptor] = {}
+    for feature, descriptor in pairs:
+        if descriptor not in DATA_TYPE_DESCRIPTORS:
+            valid = ", ".join(f'"{d}"' for d in sorted(DATA_TYPE_DESCRIPTORS))
+            raise ValueError(f'`data_type_overrides` gives the unrecognized data type descriptor "{descriptor}" for '
+                             f"`{feature}`. Valid descriptors are: {valid}.")
+        if descriptors.get(feature, descriptor) != descriptor:
+            raise ValueError(f"`data_type_overrides` gives `{feature}` more than one data type descriptor: "
+                             f'"{descriptors[feature]}" and "{descriptor}".')
+        descriptors[feature] = cast("DataTypeDescriptor", descriptor)
+    return descriptors
+
+
+def _normalize_text_features(text_features: TextFeatures | None) -> list[str]:
+    """
+    Get ``text_features`` as a list of feature names.
+
+    Parameters
+    ----------
+    text_features : list, tuple or set of str, optional
+        The ``text_features`` given to :func:`infer_feature_attributes`.
+
+    Returns
+    -------
+    list of str
+        The named features, each listed once.
+
+    Raises
+    ------
+    TypeError
+        If `text_features` is a string or not a collection.
+    """
+    if text_features is None:
+        return []
+    if isinstance(text_features, (str, bytes)) or not isinstance(text_features, Collection):
+        raise TypeError("`text_features` must be a list of feature names, not "
+                        f"{type(text_features).__name__}.")
+    return list(dict.fromkeys(text_features))
 
 
 def _rare_value_features(preserve_rare_values: PreserveRareValues | None) -> list[str]:
@@ -1203,9 +1321,81 @@ class InferFeatureAttributesBase(ABC):
                 names = ", ".join(f"`{feature}`" for feature in unknown)
                 raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
 
+    def _validate_data_type_parameters(  # noqa: PLR0912
+        self,
+        data_type_overrides: DataTypeOverrides | None,
+        text_features: TextFeatures | None = None,
+        ordinal_feature_values: Mapping[str, Any] | None = None,
+        datetime_feature_formats: Mapping[str, Any] | None = None,
+        types: Mapping[str, str | Iterable[str]] | None = None,
+    ) -> None:
+        """
+        Check ``data_type_overrides`` and ``text_features`` against the data and the other parameters.
+
+        Called once, before features are processed in separate processes, so an error is raised once
+        and a feature missing from a process's share of the columns is never mistaken for a typo.
+
+        Raises
+        ------
+        TypeError
+            If `data_type_overrides` or `text_features` is of an unrecognized form.
+        ValueError
+            If either names a feature that is not in the data or that the other also names, if
+            `data_type_overrides` gives an unrecognized descriptor or more than one descriptor for a
+            feature, or if either conflicts with `ordinal_feature_values`, `datetime_feature_formats`,
+            or `types`.
+        """
+        descriptors = _normalize_data_type_overrides(data_type_overrides)
+        text_feature_names = _normalize_text_features(text_features)
+        preset_types: dict[str, str] = {}
+        for key, value in (types or {}).items():
+            if isinstance(value, str):
+                preset_types[key] = value
+            else:
+                preset_types.update(dict.fromkeys(value, key))
+        feature_names = self._get_feature_names()
+        for parameter, features in (("data_type_overrides", descriptors), ("text_features", text_feature_names)):
+            unknown = [feature for feature in features if feature not in feature_names]
+            if unknown:
+                names = ", ".join(f"`{feature}`" for feature in unknown)
+                raise ValueError(f"`{parameter}` names features that are not in the data: {names}.")
+        both = [feature for feature in text_feature_names if feature in descriptors]
+        if both:
+            names = ", ".join(f"`{feature}`" for feature in both)
+            raise ValueError(f"These features are given in both `data_type_overrides` and `text_features`: "
+                             f"{names}.")
+        for feature, descriptor in descriptors.items():
+            if feature in (ordinal_feature_values or {}):
+                raise ValueError(f"`{feature}` is given in both `data_type_overrides` and `ordinal_feature_values`; "
+                                 "ordinal features are processed according to `ordinal_feature_values` only.")
+            dt_format = (datetime_feature_formats or {}).get(feature)
+            if descriptor in DATE_TIME_DESCRIPTORS and dt_format is False:
+                raise ValueError(f'`data_type_overrides` sets `{feature}` to "{descriptor}", but '
+                                 "`datetime_feature_formats` declares it as not a date/time.")
+            if descriptor not in DATE_TIME_DESCRIPTORS and dt_format:
+                raise ValueError(f'`data_type_overrides` sets `{feature}` to "{descriptor}", but '
+                                 "`datetime_feature_formats` gives it a date/time format.")
+            preset_type = preset_types.get(feature)
+            if preset_type is not None and preset_type not in DESCRIPTOR_FEATURE_TYPES[descriptor]:
+                allowed = " or ".join(f'"{t}"' for t in sorted(DESCRIPTOR_FEATURE_TYPES[descriptor]))
+                raise ValueError(f'`data_type_overrides` sets `{feature}` to "{descriptor}", but `types` gives it the '
+                                 f'type "{preset_type}". Features set to "{descriptor}" must be {allowed}.')
+        for feature in text_feature_names:
+            if feature in (ordinal_feature_values or {}):
+                raise ValueError(f"`{feature}` is given in both `text_features` and `ordinal_feature_values`; "
+                                 "ordinal features are processed according to `ordinal_feature_values` only.")
+            if (datetime_feature_formats or {}).get(feature):
+                raise ValueError(f"`text_features` names `{feature}`, but `datetime_feature_formats` gives it "
+                                 "a date/time format.")
+            preset_type = preset_types.get(feature)
+            if preset_type not in (None, "continuous"):
+                raise ValueError(f'`text_features` names `{feature}`, but `types` gives it the type '
+                                 f'"{preset_type}". Text features must be "continuous".')
+
     def _process(self,
                  attempt_infer_extended_nominals: bool = False,
                  max_distilled_cases: int | None = None,
+                 data_type_overrides: DataTypeOverrides | None = None,
                  datetime_feature_formats: dict | None = None,
                  default_time_zone: str | None = None,
                  dependent_features: dict[str, list[str]] | None = None,
@@ -1226,6 +1416,7 @@ class InferFeatureAttributesBase(ABC):
                  preserve_rare_values_caps: PreserveRareValuesCaps | None = None,
                  preserve_rare_values_distilled_min_cases: int = PRESERVE_RARE_VALUES_DISTILLED_MIN_CASES_DEFAULT,
                  preserve_rare_values_min_cases: int = PRESERVE_RARE_VALUES_MIN_CASES_DEFAULT,
+                 text_features: TextFeatures | None = None,
                  tight_bounds: Iterable[str] | None = None,
                  types: dict[str, str] | dict[str, MutableSequence[str]] | None = None,
                  ) -> dict:
@@ -1252,6 +1443,9 @@ class InferFeatureAttributesBase(ABC):
 
         if dependent_features is None:
             dependent_features = dict()
+
+        descriptors = _normalize_data_type_overrides(data_type_overrides)
+        text_feature_names = set(_normalize_text_features(text_features))
 
         self.default_time_zone = default_time_zone
 
@@ -1323,6 +1517,21 @@ class InferFeatureAttributesBase(ABC):
                         "type": "ordinal",
                         "bounds": {"allowed": ordinal_feature_values[feature_name]}
                     }})
+
+            # EXPLICITLY DECLARED TEXT FEATURES (tokenized into words)
+            elif feature_name in text_feature_names:
+                self.attributes = merge(self.attributes, {feature_name: {
+                    "type": "continuous",
+                    "data_type": "json",
+                    "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
+                }})
+
+            # EXPLICITLY DECLARED DATA TYPES (date/time descriptors with a declared format are parsed by it below)
+            elif feature_name in descriptors and not (
+                descriptors[feature_name] in DATE_TIME_DESCRIPTORS and self.datetime_feature_formats.get(feature_name)
+            ):
+                self.attributes = merge(self.attributes, {feature_name: self._infer_data_type_override_attributes(
+                    feature_name, descriptors[feature_name], feature_type)})
 
             # EXPLICITLY DECLARED DATETIME & TIME FEATURES
             elif self.datetime_feature_formats.get(feature_name, None):
@@ -1474,15 +1683,22 @@ class InferFeatureAttributesBase(ABC):
                 # attributes dictionary in some circumstances.
                 if feature_name not in self.data.columns:
                     continue
-                # Don't infer bounds for JSON/YAML features
-                if _attributes.get("data_type") in ["json", "yaml"]:
+                # Don't infer bounds for JSON/YAML/Amalgam features
+                if _attributes.get("data_type") in ["json", "yaml", "amalgam"]:
                     continue
                 try:
-                    bounds = self._infer_feature_bounds(
-                        self.attributes, feature_name,
-                        tight_bounds=tight_bounds,
-                        mode_bound_features=mode_bound_features,
-                    )
+                    if (
+                        _attributes.get("type") == "continuous"
+                        and _attributes.get("data_type") in ["string", "string_mixable"]
+                    ):
+                        # Strings compared by edit distance have no numeric range to bound
+                        bounds = {"allow_null": True}
+                    else:
+                        bounds = self._infer_feature_bounds(
+                            self.attributes, feature_name,
+                            tight_bounds=tight_bounds,
+                            mode_bound_features=mode_bound_features,
+                        )
                 except ValueError as err:
                     if "could not convert" in str(err):
                         # Try to catch any errors on data conversion and suggest something relevant.
@@ -1657,42 +1873,137 @@ class InferFeatureAttributesBase(ABC):
                 "data_type": "number",
             }
         if self._is_json_feature(feature_name):
-            typing_attrs = {
-                "type": "continuous",
-                "data_type": "json",
-            }
-            first_non_null = self._get_first_non_null(feature_name)
-            if isinstance(first_non_null, (Set, Sequence, Mapping)) and not isinstance(first_non_null, (str, bytes)):
-                typing_attrs["original_type"] = {"data_type": FeatureType.CONTAINER.value}
-                if isinstance(first_non_null, Set):
-                    typing_attrs["original_type"]["coercion"] = "set"
-            return typing_attrs
+            return self._infer_json_attributes(feature_name)
         if self._is_yaml_feature(feature_name):
             return {
                 "type": "continuous",
                 "data_type": "yaml"
             }
-        # The user may have pre-set the type as "continuous" to force it to be considered a tokenizable string;
-        # but that may also be the case for string ints or floats. Check that first.
-        is_tokenizable_string = False
-        if self.attributes.get(feature_name, {}).get("type") == "continuous":
-            try:
-                # If the column can be converted to float, and was set to be "continuous",
-                # it is probably not a tokenizable string.
-                col = self.data[feature_name]
-                col.astype("float")
-            except Exception:  # noqa: Intentionally broad
-                # If it cannot be converted to float, but it was set to be "continuous",
-                # it is probably a tokenizable string.
-                is_tokenizable_string = True
-        if is_tokenizable_string:
-            return {
-                "type": "continuous",
-                "data_type": "json",
-                # Also set the original_type here so that we do not need to re-check _is_tokenizable_string
-                "original_type": {"data_type": FeatureType.TOKENIZABLE_STRING.value},
-            }
+        # A string feature given as "continuous" in `types` keeps that type and is compared by edit distance.
         return self._infer_unknown_attributes(feature_name)
+
+    def _infer_json_attributes(self, feature_name: str) -> dict:
+        """Get attributes for the given column of JSON documents or Python containers."""
+        typing_attrs: dict[str, Any] = {
+            "type": "continuous",
+            "data_type": "json",
+        }
+        first_non_null = self._get_first_non_null(feature_name)
+        if isinstance(first_non_null, (Set, Sequence, Mapping)) and not isinstance(first_non_null, (str, bytes)):
+            typing_attrs["original_type"] = {"data_type": FeatureType.CONTAINER.value}
+            if isinstance(first_non_null, Set):
+                typing_attrs["original_type"]["coercion"] = "set"
+        return typing_attrs
+
+    def _infer_data_type_override_attributes(  # noqa: PLR0911, PLR0912
+        self,
+        feature_name: str,
+        descriptor: DataTypeDescriptor,
+        feature_type: FeatureType | None,
+    ) -> dict:
+        """
+        Get attributes for the given column according to its data type descriptor in ``data_type_overrides``.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of the feature.
+        descriptor : str
+            The feature's data type descriptor.
+        feature_type : FeatureType, optional
+            The type of the feature's data.
+
+        Returns
+        -------
+        dict
+            The feature's attributes.
+
+        Raises
+        ------
+        ValueError
+            If the feature's values cannot be processed as its descriptor describes: date or datetime
+            strings that are not ISO 8601, durations that are neither timedeltas nor numbers, or values
+            that are not valid JSON.
+        """
+        if descriptor == "boolean":
+            return self._infer_boolean_attributes(feature_name)
+        if descriptor == "number":
+            if feature_type == FeatureType.INTEGER:
+                return self._infer_integer_attributes(feature_name)
+            if feature_type == FeatureType.NUMERIC:
+                return self._infer_floating_point_attributes(feature_name)
+            return {"type": "continuous", "data_type": "number"}
+        if descriptor in ("date", "datetime"):
+            if (
+                isinstance(self._get_first_non_null(feature_name), str)
+                and not self._is_iso8601_datetime_column(feature_name)
+            ):
+                raise ValueError(f'Feature "{feature_name}" is set to "{descriptor}" in `data_type_overrides`, but '
+                                 "its values are not ISO 8601. Please specify the format via "
+                                 "`datetime_feature_formats`.")
+            if descriptor == "date":
+                if feature_type == FeatureType.DATETIME:
+                    self.warnings_collector.triage(IFAWarningEmitterType.DATE_OVERRIDE_DROPS_TIME, feature_name)
+                return self._infer_date_attributes(feature_name)
+            return self._infer_datetime_attributes(feature_name)
+        if descriptor == "time":
+            return self._infer_time_attributes(feature_name)
+        if descriptor == "timedelta":
+            if feature_type == FeatureType.TIMEDELTA:
+                return self._infer_timedelta_attributes(feature_name)
+            if feature_type in (FeatureType.INTEGER, FeatureType.NUMERIC):
+                # Numbers are trained as seconds and returned as timedeltas.
+                return {
+                    **self._infer_timedelta_attributes(feature_name),
+                    "original_type": {"data_type": FeatureType.TIMEDELTA.value, "unit": "seconds"},
+                }
+            raise ValueError(f'Feature "{feature_name}" is set to "timedelta" in `data_type_overrides`, but its '
+                             "values are neither timedeltas nor numbers of seconds. Please convert them to "
+                             "timedeltas, for example with `pandas.to_timedelta`.")
+        if descriptor == "string":
+            # Nominal unless `types` gives the feature as continuous, which compares its values by edit distance.
+            return {"type": "nominal", "data_type": "string"}
+        if descriptor == "string_mixable":
+            return {"type": "continuous", "data_type": "string_mixable"}
+        if descriptor == "amalgam":
+            return {"type": "continuous", "data_type": "amalgam"}
+        if descriptor == "yaml":
+            return {"type": "continuous", "data_type": "yaml"}
+        # "json"
+        if (invalid := self._find_invalid_json_value(feature_name)) is not None:
+            raise ValueError(f'Feature "{feature_name}" is set to "json" in `data_type_overrides`, but {invalid!r} is '
+                             'not valid JSON. To compare plain strings by edit distance, set the feature to "string" '
+                             'and give it the type "continuous" in `types`.')
+        return self._infer_json_attributes(feature_name)
+
+    def _find_invalid_json_value(self, feature_name: str, samples: int = 30) -> Any | None:
+        """
+        Find a value of the given feature that is neither a JSON document nor serializable as JSON.
+
+        Parameters
+        ----------
+        feature_name : str
+            The name of the feature.
+        samples : int, default 30
+            The number of random non-null values to check.
+
+        Returns
+        -------
+        Any or None
+            An invalid value among those checked, or None if every value checked is valid.
+        """
+        for _ in range(samples):
+            value = self._get_random_value(feature_name, no_nulls=True)
+            if value is None:
+                return None
+            try:
+                if isinstance(value, str):
+                    json.loads(value)
+                else:
+                    json.dumps(list(value) if isinstance(value, Set) else value)
+            except (TypeError, ValueError):
+                return value
+        return None
 
     def _infer_unknown_attributes(self, *args: Any) -> dict:
         """Get inferred attributes for the given unknown-type column."""

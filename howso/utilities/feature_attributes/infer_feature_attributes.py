@@ -24,15 +24,18 @@ from howso.utilities.feature_attributes.time_series import IFATimeSeriesADC, IFA
 
 if TYPE_CHECKING:
     from howso.client.typing import (
+        DataTypeOverrides,
         FeatureType,
         PreserveRareValues,
         PreserveRareValuesCaps,
+        TextFeatures,
     )
 
 class InferOptions(TypedDict, total=False):
     """Infer feature attributes options."""
 
     attempt_infer_extended_nominals: bool
+    data_type_overrides: DataTypeOverrides
     datetime_feature_formats: dict[str, str | tuple[str, str] | Literal[False]]
     default_time_zone: str | None
     dependent_features: dict[str, list[str]]
@@ -54,6 +57,7 @@ class InferOptions(TypedDict, total=False):
     preserve_rare_values_distilled_min_cases: int
     preserve_rare_values_min_cases: int
     significance_threshold: int
+    text_features: TextFeatures
     tight_bounds: Iterable[str]
     types: dict[str, FeatureType] | dict[FeatureType, list[str]]
 
@@ -124,6 +128,40 @@ def infer_feature_attributes(
         .. note ::
             Please refer to ``kwargs`` for other parameters related to
             extended nominals.
+
+    data_type_overrides : dict of str to list or str, optional
+        (Optional) Dict that configures how features are to be processed. Useful in circumstances
+        where the data type is ambiguous or not what might be reasonably inferred.
+        May be a mapping of feature name to data type descriptor or data type descriptor to list
+        of applicable features, but not a mix of the two; it is read as the latter when any of its
+        values is a list. Features not listed will be inferred normally. Data type descriptors
+        roughly correspond to a feature's `data_type` attribute in the resulting feature
+        attributes dictionary. They are as follows:
+
+        - "boolean" : Booleans
+        - "number" : Int or float values
+        - "date" : Dates with no time component
+        - "datetime" : Datetimes
+        - "time" : Timestamps with no date component
+        - "timedelta" : Durations, given as timedeltas or as numbers of seconds
+        - "string" : Strings, compared by edit distance when given as "continuous" in `types`
+        - "string_mixable" : Continuous strings whose predicted values may mix characters from
+          multiple original values
+        - "amalgam" : Amalgam language code
+        - "json" : Valid JSON
+        - "yaml" : Valid YAML
+
+        Examples::
+
+            {
+                "string": ["col_of_labels_that_look_like_json"],
+                "json": ["col_of_json_documents", "col_of_python_dicts"],
+            }
+
+            {
+                "col_with_no_dates": "time",
+                "col_that_is_amalgam": "amalgam",
+            }
 
     datetime_feature_formats : dict, optional
         (Optional) Dict defining custom (non-ISO8601) datetime or time-only formats.
@@ -308,7 +346,7 @@ def infer_feature_attributes(
         continuous features have an order value of 1.
 
     ordinal_feature_values : dict, optional
-        (optional) Dict for ordinal string features defining an ordered
+        (Optional) Dict for ordinal string features defining an ordered
         list of string values for each feature, ordered low to high. If
         specified will set 'type' to be 'ordinal' for all features in
         this map.
@@ -418,6 +456,13 @@ def infer_feature_attributes(
         normal. Disabling suggestions can meaningfully reduce runtime on large
         datasets when suggestions are not needed.
 
+    text_features : list of str, optional
+        (Optional) Names of features that hold text, such as reviews, comments or descriptions.
+        Their values are split into words for training and joined back together in predictions, so
+        values are compared word by word. Other string features given as "continuous" in `types` are
+        compared character by character. Given as a list, tuple or set of names, even for a single
+        feature.
+
     tight_bounds: Iterable of str, optional
         (Optional) Set tight min and max bounds for the features
         specified in the Iterable.
@@ -458,7 +503,9 @@ def infer_feature_attributes(
         "ordinal," or "continuous"), or types mapped to MutableSequences of
         feature names. Any types provided here will override the types that would
         otherwise be inferred, and will direct ``infer_feature_attributes`` to
-        compute the attributes accordingly.
+        compute the attributes accordingly. Plain string features given as "continuous"
+        are compared character by character, by edit distance; to compare text word by
+        word, name it in ``text_features`` instead.
 
         Example::
 

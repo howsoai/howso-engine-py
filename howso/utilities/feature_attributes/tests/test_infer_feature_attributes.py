@@ -1313,13 +1313,13 @@ def test_datetime_feature_formats_false_compact_dates(values, expected_data_type
 
 
 def test_datetime_feature_formats_false_with_continuous_type():
-    """Test that a `False` datetime format with a preset continuous type yields a tokenizable string."""
+    """Test that a `False` datetime format with a preset continuous type yields an edit distance string."""
     df = pd.DataFrame({"label": ["2020-01-01", "2020-01-02", "2020-01-03"]})
     features = infer_feature_attributes(df, datetime_feature_formats={"label": False},
                                         types={"label": "continuous"}, enable_suggestions=False)
     assert features["label"]["type"] == "continuous"
-    assert features["label"]["data_type"] == "json"
-    assert features["label"]["original_type"]["data_type"] == FeatureType.TOKENIZABLE_STRING.value
+    assert features["label"]["data_type"] == "string"
+    assert features["label"]["original_type"]["data_type"] == "string"
 
 
 def test_datetime_feature_formats_false_native_datetime():
@@ -1395,7 +1395,7 @@ def test_empty_string_first_non_nulls():
 
 
 def test_infer_tokenizable_string():
-    """Test that IFA correctly detects and sets feature attributes for short tokenizable text."""
+    """Test that IFA sets tokenizable string attributes for features named in `text_features`."""
     data = {
         "product": [
             "turbo-encabulator",
@@ -1415,7 +1415,7 @@ def test_infer_tokenizable_string():
         ],
     }
     df = pd.DataFrame(data)
-    feature_attributes = infer_feature_attributes(df, types={"continuous": ["review"]}, enable_suggestions=False)
+    feature_attributes = infer_feature_attributes(df, text_features=["review"], enable_suggestions=False)
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
@@ -2444,3 +2444,180 @@ def test_duplicate_index_matches_unique_index():
     )
     assert duplicate_features["date"]["date_time_format"] == "%Y-%m-%d"
     assert dict(duplicate_features) == dict(unique_features)
+
+
+@pytest.mark.parametrize("data_type_overrides", [
+    {"string": ["barretts_privateers", "northwest_passage"]},
+    {"barretts_privateers": "string", "northwest_passage": "string"},
+    {"string": ("barretts_privateers", "northwest_passage")},
+    {"string": {"barretts_privateers", "northwest_passage"}, "json": []},
+])
+def test_data_type_overrides_edit_distance_strings(data_type_overrides):
+    """Strings set to "string" and given as continuous in `types` are compared by edit distance."""
+    df = pd.DataFrame({
+        "barretts_privateers": ["oh", "the", "year", "was", "1778", "how", "I", "wish", "I", "was"],
+        "northwest_passage": ["for", "just", "one", "time", "I", "would", "take", "the", "northwest", "passage"],
+        "birth_date": [f"2020-01-0{i}" for i in range(1, 10)] + ["2021-01-01"],
+    })
+    types = {"continuous": ["barretts_privateers", "northwest_passage"]}
+    features = infer_feature_attributes(df, data_type_overrides=data_type_overrides, types=types)
+    for feature in ["barretts_privateers", "northwest_passage"]:
+        assert features[feature]["type"] == "continuous"
+        assert features[feature]["data_type"] == "string"
+        assert features[feature]["bounds"] == {"allow_null": True, "nulls_observed": False}
+    assert features["birth_date"]["data_type"] == "formatted_date_time"
+
+    features = infer_feature_attributes(df, data_type_overrides={"birth_date": "string"},
+                                        types={"birth_date": "continuous"})
+    assert features["birth_date"]["type"] == "continuous"
+    assert features["birth_date"]["data_type"] == "string"
+    assert "date_time_format" not in features["birth_date"]
+
+
+@pytest.mark.parametrize(("data", "descriptor", "expected"), [
+    (["true", "false"] * 5, "boolean", {"type": "nominal", "data_type": "boolean"}),
+    ([str(i) for i in range(10)], "number", {"type": "continuous", "data_type": "number"}),
+    (list(range(10)), "string", {"type": "nominal", "data_type": "string"}),
+    (["ab", "cd"] * 5, "string_mixable", {"type": "continuous", "data_type": "string_mixable"}),
+    ([f"10:0{i}" for i in range(10)], "time", {"type": "continuous", "data_type": "formatted_time",
+                                              "date_time_format": "%H:%M"}),
+    ([f"2020-01-0{i}" for i in range(1, 10)], "date", {"type": "continuous", "data_type": "formatted_date_time"}),
+    (pd.to_timedelta(range(10), unit="s"), "timedelta", {"type": "continuous", "data_type": "number",
+                                                         "original_type": {"data_type": "timedelta",
+                                                                           "unit": "seconds"}}),
+    (list(range(10)), "timedelta", {"type": "continuous", "data_type": "number",
+                                    "original_type": {"data_type": "timedelta", "unit": "seconds"}}),
+    ([f"(+ 1 {i})" for i in range(10)], "amalgam", {"type": "continuous", "data_type": "amalgam"}),
+    ([f"a: {i}" for i in range(10)], "yaml", {"type": "continuous", "data_type": "yaml"}),
+    ([f'{{"a": {i}}}' for i in range(10)], "json", {"type": "continuous", "data_type": "json"}),
+    ([str(i) for i in range(10)], "json", {"type": "continuous", "data_type": "json"}),
+    ([[i, i + 1] for i in range(10)], "json", {"type": "continuous", "data_type": "json",
+                                               "original_type": {"data_type": "container"}}),
+])
+def test_data_type_overrides(data, descriptor, expected):
+    """Each data type descriptor sets the attributes it describes."""
+    df = pd.DataFrame({"feature": data})
+    features = infer_feature_attributes(df, data_type_overrides={"feature": descriptor})
+    assert expected.items() <= features["feature"].items()
+
+
+def test_data_type_overrides_respects_types():
+    """A type given in `types` is kept for a feature with a data type descriptor."""
+    df = pd.DataFrame({"feature": [f'{{"a": {i}}}' for i in range(10)]})
+    features = infer_feature_attributes(df, data_type_overrides={"feature": "json"}, types={"feature": "nominal"})
+    assert features["feature"]["type"] == "nominal"
+    assert features["feature"]["data_type"] == "json"
+
+
+def test_data_type_overrides_feature_named_like_descriptor():
+    """A feature named like a data type descriptor is read as a feature when every value is a string."""
+    df = pd.DataFrame({"json": ["a", "b"] * 5, "string": ['{"a": 1}', '{"b": 2}'] * 5})
+    features = infer_feature_attributes(df, data_type_overrides={"json": "string", "string": "json"})
+    assert features["json"]["data_type"] == "string"
+    assert features["string"]["data_type"] == "json"
+
+
+@pytest.mark.parametrize(("descriptor", "feature_type"), [
+    ("boolean", "nominal"),
+    ("string", "nominal"),
+    ("string", "continuous"),
+    ("string_mixable", "continuous"),
+    ("number", "nominal"),
+    ("json", "continuous"),
+])
+def test_data_type_overrides_compatible_types(descriptor, feature_type):
+    """A type in `types` that the data type descriptor allows is accepted, in either form of `types`."""
+    df = pd.DataFrame({"feature": ["1", "0"] * 5})
+    for types in [{"feature": feature_type}, {feature_type: ["feature"]}]:
+        features = infer_feature_attributes(df, data_type_overrides={"feature": descriptor}, types=types)
+        assert features["feature"]["type"] == feature_type
+
+
+@pytest.mark.parametrize(("dates", "warns"), [
+    (pd.date_range("2020-01-01 10:30", periods=10, freq="h"), True),
+    (pd.date_range("2020-01-01", periods=10, freq="D"), False),
+])
+def test_data_type_overrides_date_drops_time_warning(dates, warns):
+    """Setting a column of datetimes to "date" warns that their times are dropped."""
+    df = pd.DataFrame({"feature": dates})
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        features = infer_feature_attributes(df, data_type_overrides={"feature": "date"})
+    assert features["feature"]["date_time_format"] == "%Y-%m-%d"
+    assert any('set to "date"' in str(w.message) for w in caught) == warns
+
+
+def test_data_type_overrides_uses_datetime_format():
+    """A date/time descriptor parses the feature with its format in `datetime_feature_formats`."""
+    df = pd.DataFrame({"feature": [f"01/0{i}/2020" for i in range(1, 10)]})
+    features = infer_feature_attributes(df, data_type_overrides={"feature": "date"},
+                                        datetime_feature_formats={"feature": "%m/%d/%Y"})
+    assert features["feature"]["data_type"] == "formatted_date_time"
+    assert features["feature"]["date_time_format"] == "%m/%d/%Y"
+    with pytest.raises(ValueError, match="not ISO 8601"):
+        infer_feature_attributes(df, data_type_overrides={"feature": "date"})
+
+
+@pytest.mark.parametrize(("kwargs", "error", "match"), [
+    ({"data_type_overrides": {"missing": "json"}}, ValueError, "not in the data"),
+    ({"data_type_overrides": {"jsn": ["feature"]}}, ValueError, "unrecognized data type descriptor"),
+    ({"data_type_overrides": {"json": ["feature"], "string": ["feature"]}}, ValueError,
+     "more than one data type descriptor"),
+    ({"data_type_overrides": {"feature": "json", "string": ["other"]}}, TypeError, "not lists: `feature`"),
+    ({"data_type_overrides": ["feature"]}, TypeError, "must be a dict"),
+    ({"data_type_overrides": {"feature": 1}}, TypeError, "neither: `feature`"),
+    ({"data_type_overrides": {"feature": "json"}}, ValueError, "is not valid JSON"),
+    ({"data_type_overrides": {"feature": "timedelta"}}, ValueError, "neither timedeltas nor numbers"),
+    ({"data_type_overrides": {"feature": "string"}, "ordinal_feature_values": {"feature": ["a", "b"]}},
+     ValueError, "ordinal_feature_values"),
+    ({"data_type_overrides": {"feature": "string"}, "datetime_feature_formats": {"feature": "%Y"}},
+     ValueError, "gives it a date/time format"),
+    ({"data_type_overrides": {"feature": "date"}, "datetime_feature_formats": {"feature": False}},
+     ValueError, "not a date/time"),
+    ({"data_type_overrides": {"feature": "string"}, "types": {"feature": "ordinal"}}, ValueError, "must be"),
+    ({"data_type_overrides": {"feature": "boolean"}, "types": {"continuous": ["feature"]}}, ValueError, "must be"),
+    ({"data_type_overrides": {"string_mixable": ["feature"]}, "types": {"feature": "nominal"}}, ValueError,
+     "must be"),
+    ({"data_type_overrides": {"feature": "tokenizable_string"}}, ValueError, "unrecognized data type descriptor"),
+])
+def test_data_type_overrides_invalid(kwargs, error, match):
+    """Invalid `data_type_overrides` values and conflicts with other parameters raise errors."""
+    df = pd.DataFrame({"feature": ["a", "b"] * 5})
+    with pytest.raises(error, match=match):
+        infer_feature_attributes(df, **kwargs)
+
+
+@pytest.mark.parametrize("text_features", [["review"], ("review",), {"review"}])
+def test_text_features(text_features):
+    """Features named in `text_features` are continuous tokenizable strings."""
+    df = pd.DataFrame({"review": ["a b c", "d e f"] * 5, "product": ["x", "y"] * 5})
+    features = infer_feature_attributes(df, text_features=text_features, enable_suggestions=False)
+    assert features["review"]["type"] == "continuous"
+    assert features["review"]["data_type"] == "json"
+    assert features["review"]["original_type"]["data_type"] == "tokenizable_string"
+    assert features["product"]["data_type"] == "string"
+    features = infer_feature_attributes(df, text_features=["review"], types={"review": "continuous"},
+                                        enable_suggestions=False)
+    assert features["review"]["original_type"]["data_type"] == "tokenizable_string"
+    features = infer_feature_attributes(df, types={"review": "continuous"}, enable_suggestions=False)
+    assert features["review"]["data_type"] == "string"
+    assert features["review"]["original_type"]["data_type"] == "string"
+
+
+@pytest.mark.parametrize(("kwargs", "error", "match"), [
+    ({"text_features": "feature"}, TypeError, "must be a list of feature names"),
+    ({"text_features": ["missing"]}, ValueError, "not in the data"),
+    ({"text_features": ["feature"], "data_type_overrides": {"feature": "string"}}, ValueError,
+     "both `data_type_overrides` and `text_features`"),
+    ({"text_features": ["feature"], "ordinal_feature_values": {"feature": ["a", "b"]}}, ValueError,
+     "ordinal_feature_values"),
+    ({"text_features": ["feature"], "datetime_feature_formats": {"feature": "%Y"}}, ValueError,
+     "gives it a date/time format"),
+    ({"text_features": ["feature"], "types": {"nominal": ["feature"]}}, ValueError,
+     'must be "continuous"'),
+])
+def test_text_features_invalid(kwargs, error, match):
+    """Invalid `text_features` values and conflicts with other parameters raise errors."""
+    df = pd.DataFrame({"feature": ["a", "b"] * 5})
+    with pytest.raises(error, match=match):
+        infer_feature_attributes(df, **kwargs)
