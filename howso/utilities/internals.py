@@ -18,7 +18,7 @@ import logging
 from pathlib import Path
 import random
 import re
-from typing import Any, cast, Protocol, TypeVar, overload
+from typing import Any, cast, overload, Protocol, TypeVar
 import unicodedata
 import uuid
 import warnings
@@ -300,7 +300,7 @@ def format_react_response(response: dict, single_action: bool = False):
     return {'action': action, 'details': response}
 
 
-def accumulate_react_result(accumulated_result: dict, result: dict) -> dict:
+def accumulate_react_result(accumulated_result: dict[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
     """
     Accumulate the results from multiple reacts responses.
 
@@ -308,27 +308,28 @@ def accumulate_react_result(accumulated_result: dict, result: dict) -> dict:
     ----------
     accumulated_result : dict
         Accumulated react responses. This object will be mutated in place.
-    result : dict
+    result : Mapping
         The react response object.
 
     Returns
     -------
     dict
-         The updated accumulated_result dict.
+        The updated accumulated_result dict.
     """
     for k, v in result.items():
-        if accumulated_result.get(k) is None:
-            if v is None:
-                accumulated_result[k] = None
-            else:
-                accumulated_result[k] = []
 
-        if k in {'action_features', 'context_features'}:
+        if k in {"action_features", "context_features", "features"}:
             # Only include action/context features once
-            if not accumulated_result[k]:
+            if not accumulated_result.get(k):
                 accumulated_result[k] = v
             continue
 
+        if isinstance(v, Mapping):
+            accumulated_result[k] = accumulate_react_result(accumulated_result.get(k, {}), v)
+            continue
+
+        if accumulated_result.get(k) is None:
+            accumulated_result[k] = None if v is None else []
         if v is not None:
             accumulated_result[k].extend(v)
 

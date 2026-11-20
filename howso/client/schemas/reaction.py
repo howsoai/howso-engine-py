@@ -16,17 +16,21 @@ __all__ = [
     "Reaction",
 ]
 
-# Details with case data that need to be deserialized
-DETAILS_WITH_CASE_DATA = {
+_CASE_DATA_DETAILS_ONE_TO_MANY = frozenset({
     "boundary_cases",
-    "boundary_values",
-    "hypothetical_values",
     "influential_cases",
     "most_similar_cases",
-    "outlying_feature_values",
+})
+"""Case details deserialized into a list of multi row DataFrames per reaction case."""
+
+_CASE_DATA_DETAILS_ONE_TO_ONE = frozenset({
+    "hypothetical_values",
     "predicted_values_for_case",
-    "relevant_values",
-}
+})
+"""Case details deserialized into a single DataFrame where rows map to reaction cases."""
+
+_CASE_DATA_DETAILS = _CASE_DATA_DETAILS_ONE_TO_ONE | _CASE_DATA_DETAILS_ONE_TO_MANY
+"""Case details defined as a dict of features + values keys."""
 
 ReactionKey: TypeAlias = Literal[
     "action",
@@ -350,8 +354,9 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         """Return a printable representation of this Reaction."""
         return f"{self._action!r}\n{pformat(self._details)}"
 
-    @staticmethod
+    @classmethod
     def format_react_details(
+        cls,
         details: MutableMapping[str, Any],
         feature_attributes: Mapping[str, Any],
         tokenizer: TokenizerProtocol
@@ -380,87 +385,28 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         """
         formatted_details = {}
 
-        def _format_case_lists(cases: list[list[dict[str, Any]]]) -> list[pd.DataFrame] | None:
-            """
-            Format a list of per-case lists of dicts into a list of DataFrames using a single formatting pass.
-
-            All cases are concatenated into one DataFrame, formatted once, then sliced back into one
-            DataFrame per case. This also guarantees consistent column dtypes across cases, which per-case
-            inference does not. Returns None if the cases cannot be batched (i.e., their dicts do not all
-            share the same keys), in which case the caller should fall back to per-case formatting.
-            """
-            flat = list(chain.from_iterable(cases))
-            if not flat:
-                return [pd.DataFrame() for _ in cases]
-            if not all(isinstance(row, dict) for row in flat):
-                return None
-            first_keys = flat[0].keys()
-            if not all(row.keys() == first_keys for row in flat):
-                return None
-            df = format_dataframe(pd.DataFrame(flat), features=feature_attributes, tokenizer=tokenizer)
-            bounds = np.cumsum([0, *(len(case) for case in cases)])
-            return [
-                df.iloc[start:stop].reset_index(drop=True) if stop > start else pd.DataFrame()
-                for start, stop in pairwise(bounds)
-            ]
-
-        def _convert(detail_name: str, detail: Any) -> Any:  # noqa: PLR0911
-            """Recursively format and deserialize details."""
-            # If the detail is not a list, return as-is
-            if not isinstance(detail, list):
-                return detail
-            # Special case: a list of per-case lists of dicts that need deserializing. Format all cases at
-            # once in a single DataFrame rather than one tiny DataFrame per case; the per-DataFrame overhead
-            # of pandas dominates otherwise.
-            if detail_name in DETAILS_WITH_CASE_DATA and detail and all(isinstance(v, list) for v in detail):
-                batched = _format_case_lists(detail)
-                if batched is not None:
-                    return batched
-            # List of dict --> DataFrame
-            elif all(isinstance(v, dict) for v in detail):
-                # Special case: categorical action probabilities
-                if detail_name == "categorical_action_probabilities":
-                    return update_caps_maps(detail, feature_attributes)
-                # Special case: prediction stats
-                if detail_name == "prediction_stats":
-                    pred_stats_groups = []
-                    for group in detail:
-                        if "confusion_matrix" in group:
-                            group["confusion_matrix"].update({
-                                k: {**v, "matrix": pd.DataFrame(v["matrix"])}
-                                if isinstance(v, Mapping) and "matrix" in v
-                                else v
-                                for k, v in group["confusion_matrix"].items()
-                            })
-                        pred_stats_groups.append(pd.DataFrame(group).T)
-                    return pred_stats_groups
-                # Special case: details to be deserialized
-                if detail_name in DETAILS_WITH_CASE_DATA:
-                    return format_dataframe(
-                        pd.DataFrame(detail),
-                        features=feature_attributes,
-                        tokenizer=tokenizer
-                    )
-                # All other details
-                return pd.DataFrame(detail)
-
-            # Recurse
-            return [_convert(detail_name, v) for v in detail]
-
         for detail_name, detail in details.items():
             # Special case: context_values
             if detail_name == "context_values":
                 context_columns = details.get("context_features")
                 formatted_details.update({detail_name: deserialize_cases(detail, context_columns, feature_attributes)})
+
             # Special case: relevant_values
             elif detail_name == "relevant_values":
-                deserialized_cases = []
-                for case in detail:
-                    deserialized_case = {}
-                    for k, v in case.items():
-                        deserialized_case[k] = format_column(pd.Series(v), feature=feature_attributes[k])
-                    deserialized_cases.append(deserialized_case)
-                formatted_details.update({detail_name: deserialized_cases})
+                if not isinstance(detail, Mapping):
+                    # Not officially supported in react_series contexts so return as is
+                    # HSE will raise experimental warning, no need to raise warning here
+                    formatted_details.update({detail_name: detail})
+                else:
+                    relevant_values: list[dict[str, pd.Series]] = []
+                    for case in detail.get("values", []):
+                        deserialized_case: dict[str, pd.Series] = {}
+                        for i, k in enumerate(detail.get("features", [])):
+                            deserialized_case[k] = format_column(
+                                pd.Series(case[i], name=k), feature=feature_attributes[k], tokenizer=tokenizer)
+                        relevant_values.append(deserialized_case)
+                    formatted_details.update({detail_name: relevant_values})
+
             # Special case: leave as-is
             elif detail_name in {
                 "outlying_feature_values",
@@ -471,12 +417,129 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                 formatted_details.update({detail_name: detail})
             # Other valid details
             elif detail_name in ReactDetails.__annotations__:
-                formatted_details.update({detail_name: _convert(detail_name, detail)})
+                formatted_details.update({
+                    detail_name: cls._format_detail(detail_name, detail, feature_attributes, tokenizer=tokenizer)
+                })
             # Unknown detail
             else:
                 raise ValueError(f"Unknown Reaction detail name: {detail_name}")
 
         return ReactDetails(**formatted_details)
+
+    @classmethod
+    def _format_detail(
+        cls,
+        detail_name: str,
+        detail: Any,
+        feature_attributes: Mapping[str, Any],
+        *,
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> Any:
+        """Recursively format and deserialize details."""
+        # Special case: Table(s) of case data mapping to each reaction case
+        if detail_name in _CASE_DATA_DETAILS:
+            return cls._format_table_detail(detail_name, detail, feature_attributes, tokenizer=tokenizer)
+
+        # If the detail is not a list, return as-is
+        if not isinstance(detail, list):
+            return detail
+
+        # List of dict
+        if all(isinstance(v, dict) for v in detail):
+            # Special case: categorical action probabilities
+            if detail_name == "categorical_action_probabilities":
+                return update_caps_maps(detail, feature_attributes)
+            # Special case: prediction stats
+            if detail_name == "prediction_stats":
+                pred_stats_groups = []
+                for group in detail:
+                    if "confusion_matrix" in group:
+                        group["confusion_matrix"].update({
+                            k: {**v, "matrix": pd.DataFrame(v["matrix"])}
+                            if isinstance(v, Mapping) and "matrix" in v
+                            else v
+                            for k, v in group["confusion_matrix"].items()
+                        })
+                    pred_stats_groups.append(pd.DataFrame(group).T)
+                return pred_stats_groups
+            # All other details
+            return pd.DataFrame(detail)
+
+        # Recurse
+        return [cls._format_detail(detail_name, v, feature_attributes, tokenizer=tokenizer) for v in detail]
+
+    @classmethod
+    def _format_table_detail(
+        cls,
+        detail_name: str,
+        detail: Mapping[str, list[Any]],
+        feature_attributes: Mapping[str, Any],
+        *,
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> Any:
+        """Format case values into DataFrame(s) mapping to each reaction case."""
+        if isinstance(detail, Mapping):
+            if detail_name in _CASE_DATA_DETAILS_ONE_TO_MANY:
+                return cls._format_multi_table_detail(detail, feature_attributes, tokenizer=tokenizer)
+            if detail_name in _CASE_DATA_DETAILS_ONE_TO_ONE:
+                return cls._format_single_table_detail(detail, feature_attributes, tokenizer=tokenizer)
+        if isinstance(detail, list):
+            # Recurse, accounting for series response types
+            return [cls._format_table_detail(detail_name, v, feature_attributes, tokenizer=tokenizer) for v in detail]
+
+        return detail
+
+    @staticmethod
+    def _format_single_table_detail(
+        detail: Mapping[str, list[Any]],
+        feature_attributes: Mapping[str, Any],
+        *,
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> pd.DataFrame:
+        """Format a single DataFrame of case values, were each reaction case maps to one row in the DataFrame."""
+        features = detail.get("features", [])
+        values = detail.get("values", [])
+        if not features or not values:
+            return pd.DataFrame(columns=features)
+        return deserialize_cases(
+            data=values,
+            columns=features,
+            features=feature_attributes,
+            tokenizer=tokenizer,
+        )
+
+    @staticmethod
+    def _format_multi_table_detail(
+        detail: Mapping[str, list[Any]],
+        feature_attributes: Mapping[str, Any],
+        *,
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> list[pd.DataFrame]:
+        """Format multiple DataFrames of case values, were each reaction case maps to one of the DataFrames."""
+        """
+        Format a list of per-case case-tables into a list of DataFrames in one formatting pass.
+
+        All cases are concatenated into one DataFrame, formatted once, then sliced back into one
+        DataFrame per case. This also guarantees consistent column dtypes across cases, which per-case
+        inference does not.
+        """
+        features = detail.get("features", [])
+        values = detail.get("values", [])
+        flat = list(chain.from_iterable(values))
+        if not flat or not features:
+            return [pd.DataFrame(columns=features) for _ in values]
+
+        bounds = np.cumsum([0, *(len(table) for table in values)])
+        df = deserialize_cases(
+            data=flat,
+            columns=features,
+            features=feature_attributes,
+            tokenizer=tokenizer,
+        )
+        return [
+            df.iloc[start:stop].reset_index(drop=True) if stop > start else pd.DataFrame(columns=features)
+            for start, stop in pairwise(bounds)
+        ]
 
     def accumulate(self, reactions: Reaction | Sequence[Reaction]) -> None:
         """
