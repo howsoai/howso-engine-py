@@ -2566,7 +2566,6 @@ def test_data_type_overrides_uses_datetime_format():
     ({"data_type_overrides": {"feature": "json", "string": ["other"]}}, TypeError, "not lists: `feature`"),
     ({"data_type_overrides": ["feature"]}, TypeError, "must be a dict"),
     ({"data_type_overrides": {"feature": 1}}, TypeError, "neither: `feature`"),
-    ({"data_type_overrides": {"feature": "json"}}, ValueError, "is not valid JSON"),
     ({"data_type_overrides": {"feature": "timedelta"}}, ValueError, "neither timedeltas nor numbers"),
     ({"data_type_overrides": {"feature": "string"}, "ordinal_feature_values": {"feature": ["a", "b"]}},
      ValueError, "ordinal_feature_values"),

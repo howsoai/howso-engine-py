@@ -1922,8 +1922,7 @@ class InferFeatureAttributesBase(ABC):
         ------
         ValueError
             If the feature's values cannot be processed as its descriptor describes: date or datetime
-            strings that are not ISO 8601, durations that are neither timedeltas nor numbers, or values
-            that are not valid JSON.
+            strings that are not ISO 8601, or durations that are neither timedeltas nor numbers.
         """
         if descriptor == "boolean":
             return self._infer_boolean_attributes(feature_name)
@@ -1970,40 +1969,7 @@ class InferFeatureAttributesBase(ABC):
         if descriptor == "yaml":
             return {"type": "continuous", "data_type": "yaml"}
         # "json"
-        if (invalid := self._find_invalid_json_value(feature_name)) is not None:
-            raise ValueError(f'Feature "{feature_name}" is set to "json" in `data_type_overrides`, but {invalid!r} is '
-                             'not valid JSON. To compare plain strings by edit distance, set the feature to "string" '
-                             'and give it the type "continuous" in `types`.')
         return self._infer_json_attributes(feature_name)
-
-    def _find_invalid_json_value(self, feature_name: str, samples: int = 30) -> Any | None:
-        """
-        Find a value of the given feature that is neither a JSON document nor serializable as JSON.
-
-        Parameters
-        ----------
-        feature_name : str
-            The name of the feature.
-        samples : int, default 30
-            The number of random non-null values to check.
-
-        Returns
-        -------
-        Any or None
-            An invalid value among those checked, or None if every value checked is valid.
-        """
-        for _ in range(samples):
-            value = self._get_random_value(feature_name, no_nulls=True)
-            if value is None:
-                return None
-            try:
-                if isinstance(value, str):
-                    json.loads(value)
-                else:
-                    json.dumps(list(value) if isinstance(value, Set) else value)
-            except (TypeError, ValueError):
-                return value
-        return None
 
     def _infer_unknown_attributes(self, *args: Any) -> dict:
         """Get inferred attributes for the given unknown-type column."""
