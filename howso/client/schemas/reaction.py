@@ -388,7 +388,9 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
             # Special case: context_values
             if detail_name == "context_values":
                 context_columns = details.get("context_features")
-                formatted_details.update({detail_name: deserialize_cases(detail, context_columns, feature_attributes)})
+                formatted_details.update({
+                    detail_name: deserialize_cases(detail, context_columns, feature_attributes, tokenizer=tokenizer)
+                })
 
             # Special case: relevant_values
             elif detail_name == "relevant_values":
@@ -398,11 +400,12 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
                     formatted_details.update({detail_name: detail})
                 else:
                     relevant_values: list[dict[str, pd.Series]] = []
-                    for case in detail.get("values", []):
+                    for case in detail.get("values") or []:
                         deserialized_case: dict[str, pd.Series] = {}
-                        for i, k in enumerate(detail.get("features", [])):
-                            deserialized_case[k] = format_column(
-                                pd.Series(case[i], name=k), feature=feature_attributes[k], tokenizer=tokenizer)
+                        if isinstance(case, Sequence):
+                            for i, k in enumerate(detail.get("features") or []):
+                                deserialized_case[k] = format_column(
+                                    pd.Series(case[i], name=k), feature=feature_attributes[k], tokenizer=tokenizer)
                         relevant_values.append(deserialized_case)
                     formatted_details.update({detail_name: relevant_values})
 

@@ -12,12 +12,14 @@ from howso.utilities import deserialize_cases, TokenizerProtocol
 
 
 def format_case_table(
-    detail: Mapping[str, list[Any]],
+    detail: Mapping[str, list[Any]] | None,
     feature_attributes: Mapping[str, Any],
     *,
     tokenizer: TokenizerProtocol | None = None,
 ) -> pd.DataFrame:
     """Format a single DataFrame of case values, where each case maps to one row in the DataFrame."""
+    if detail is None:
+        return pd.DataFrame()
     features = detail.get("features")
     values = detail.get("values")
     if not features or not values:
@@ -33,7 +35,7 @@ def format_case_table(
 
 
 def format_case_tables(
-    detail: Mapping[str, list[Any]],
+    detail: Mapping[str, list[Any]] | None,
     feature_attributes: Mapping[str, Any],
     *,
     tokenizer: TokenizerProtocol | None = None,
@@ -45,6 +47,8 @@ def format_case_tables(
     DataFrame per case. This also guarantees consistent column dtypes across cases, which per-case
     inference does not.
     """
+    if detail is None:
+        return []
     features = detail.get("features") or []
     values = detail.get("values") or []
     values = [[] if v is None else v for v in values]  # treat nulls as empty table

@@ -315,13 +315,25 @@ def accumulate_react_result(accumulated_result: dict[str, Any], result: Mapping[
     -------
     dict
         The updated accumulated_result dict.
+
+    Raises
+    ------
+    HowsoError
+        If a batch's feature name list differs from the one already accumulated, since its values would
+        otherwise be silently misaligned with the accumulated feature names.
     """
     for k, v in result.items():
 
         if k in {"action_features", "context_features", "features"}:
-            # Only include action/context features once
-            if not accumulated_result.get(k):
+            # Only include feature name lists once
+            existing = accumulated_result.get(k)
+            if not existing:
                 accumulated_result[k] = v
+            elif v and list(existing) != list(v):
+                from howso.client.exceptions import HowsoError  # noqa: PLC0415
+                raise HowsoError(
+                    f'Inconsistent "{k}" across react batches: expected {existing}, received {v}.'
+                )
             continue
 
         if isinstance(v, Mapping):

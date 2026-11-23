@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from semantic_version import Version
 
+from howso.client.exceptions import HowsoError
 from howso.utilities import internals
 from howso.utilities.monitors import ProgressTimer
 
@@ -747,6 +748,36 @@ def test_accumulate_react_result_sets_feature_lists_once(key: str) -> None:
     internals.accumulate_react_result(accumulated, {key: ["a", "b"]})
 
     assert accumulated == {key: ["a", "b"]}
+
+
+@pytest.mark.parametrize(("first", "second"), [
+    pytest.param({"action_features": ["a", "b"]}, {"action_features": ["b", "a"]}, id="top-level-reordered"),
+    pytest.param({"context_features": ["a"]}, {"context_features": ["a", "b"]}, id="top-level-extra"),
+    pytest.param(
+        {"influential_cases": {"features": ["a", "b"], "values": [[[1, 2]]]}},
+        {"influential_cases": {"features": ["b", "a"], "values": [[[3, 4]]]}},
+        id="case-table-reordered",
+    ),
+])
+def test_accumulate_react_result_inconsistent_feature_lists_raise(
+    first: dict[str, Any],
+    second: dict[str, Any],
+) -> None:
+    """A batch whose feature name list differs from the accumulated one raises instead of misaligning values."""
+    accumulated: dict[str, Any] = {}
+    internals.accumulate_react_result(accumulated, first)
+    with pytest.raises(HowsoError, match="Inconsistent"):
+        internals.accumulate_react_result(accumulated, second)
+
+
+@pytest.mark.parametrize("empty", [None, []])
+def test_accumulate_react_result_empty_feature_list_does_not_conflict(empty: list[str] | None) -> None:
+    """A batch with no feature names (detail not computed) neither conflicts with nor overrides accumulated ones."""
+    accumulated: dict[str, Any] = {}
+    internals.accumulate_react_result(accumulated, {"influential_cases": {"features": ["a"], "values": [[[1]]]}})
+    internals.accumulate_react_result(accumulated, {"influential_cases": {"features": empty, "values": [None]}})
+
+    assert accumulated["influential_cases"]["features"] == ["a"]
 
 
 @pytest.mark.parametrize(("results", "expected"), [
