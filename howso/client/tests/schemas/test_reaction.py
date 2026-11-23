@@ -2,6 +2,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from howso.client.schemas.reaction import Reaction
 from howso.utilities import infer_feature_attributes
@@ -192,6 +193,58 @@ def test_multi_table_details_without_any_rows():
     assert formatted.get("influential_cases") == []
 
 
+def test_multi_table_details_with_null_tables():
+    """Tests that null per-case tables (details not computed for a case) are formatted as empty DataFrames."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
+    attributes = infer_feature_attributes(df)
+    details = {
+        "action_features": ["num"],
+        # As sent by the engine when the detail was not computed for any case
+        "boundary_cases": {"features": None, "values": [None, None]},
+        "influential_cases": {"features": ["num", "int"], "values": [None, [[1.5, 1]], []]},
+    }
+    formatted = Reaction(df[["num"]], details, attributes)["details"]
+
+    boundary_cases = formatted.get("boundary_cases")
+    assert isinstance(boundary_cases, list)
+    assert len(boundary_cases) == 2
+    for case in boundary_cases:
+        assert isinstance(case, pd.DataFrame)
+        assert case.empty
+        assert case.columns.tolist() == []
+
+    influential_cases = formatted.get("influential_cases")
+    assert isinstance(influential_cases, list)
+    assert len(influential_cases) == 3
+    assert all(isinstance(case, pd.DataFrame) for case in influential_cases)
+    assert all(case.columns.tolist() == ["num", "int"] for case in influential_cases)
+    assert influential_cases[0].empty
+    assert influential_cases[2].empty
+    assert influential_cases[1]["num"].tolist() == [1.5]
+    assert influential_cases[1]["int"].dtype == np.int64
+
+
+def test_multi_table_details_nested_per_series_with_null_tables():
+    """Tests that null per-step tables within a `react_series` detail are formatted as empty DataFrames."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
+    attributes = infer_feature_attributes(df)
+    details = {
+        "action_features": ["num"],
+        "influential_cases": [
+            {"features": ["num", "int"], "values": [None, [[2.5, 2]]]},
+            {"features": None, "values": [None]},
+        ],
+    }
+    series = Reaction(df[["num"]], details, attributes)["details"].get("influential_cases")
+    assert isinstance(series, list)
+    assert [len(steps) for steps in series] == [2, 1]
+    assert all(isinstance(step, pd.DataFrame) for steps in series for step in steps)
+    assert series[0][0].empty
+    assert series[0][0].columns.tolist() == ["num", "int"]
+    assert series[0][1]["int"].tolist() == [2]
+    assert series[1][0].empty
+
+
 def test_multi_table_details_nested_per_series():
     """Tests that per-case details nested one level deeper (as in `react_series`) are still formatted per case."""
     df = pd.DataFrame({"num": [1.5, 2.5, 3.5], "int": [1, 2, 3]})
@@ -275,6 +328,49 @@ def test_single_table_case_details_without_values():
     assert isinstance(predicted, pd.DataFrame)
     assert predicted.empty
     assert predicted.columns.tolist() == ["num", "int"]
+
+
+def test_single_table_case_details_with_null_rows():
+    """Tests that null rows (details not computed for a case) are kept as null rows aligned to their case."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2], "nom": ["a", "b"]})
+    attributes = infer_feature_attributes(df)
+    details = {
+        "action_features": ["num"],
+        "predicted_values_for_case": {"features": ["num", "int", "nom"], "values": [None, [2.5, 2, "b"]]},
+        "hypothetical_values": {"features": ["num", "int"], "values": [None, None]},
+    }
+    formatted = Reaction(df[["num"]], details, attributes)["details"]
+
+    predicted = formatted.get("predicted_values_for_case")
+    assert isinstance(predicted, pd.DataFrame)
+    assert predicted.columns.tolist() == ["num", "int", "nom"]
+    assert predicted.index.tolist() == [0, 1]
+    assert predicted.iloc[0].isna().all()
+    assert predicted.iloc[1].tolist() == [2.5, 2, "b"]
+    assert predicted["num"].dtype == np.float64
+    # The null makes the integer column nullable
+    assert str(predicted["int"].dtype) == "Int64"
+
+    hypothetical = formatted.get("hypothetical_values")
+    assert isinstance(hypothetical, pd.DataFrame)
+    assert hypothetical.columns.tolist() == ["num", "int"]
+    assert hypothetical.index.tolist() == [0, 1]
+    assert hypothetical.isna().all().all()
+
+
+@pytest.mark.parametrize("detail", [
+    pytest.param({"features": None, "values": None}, id="null-features-and-values"),
+    pytest.param({"features": None, "values": [None, None]}, id="null-features-null-rows"),
+])
+def test_single_table_case_details_with_null_features(detail: dict[str, Any]):
+    """Tests that a one-to-one case detail without features is formatted as an empty DataFrame."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
+    attributes = infer_feature_attributes(df)
+    details = {"action_features": ["num"], "predicted_values_for_case": detail}
+    predicted = Reaction(df[["num"]], details, attributes)["details"].get("predicted_values_for_case")
+    assert isinstance(predicted, pd.DataFrame)
+    assert predicted.empty
+    assert predicted.columns.tolist() == []
 
 
 def test_accumulate_case_details():

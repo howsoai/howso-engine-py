@@ -18,8 +18,8 @@ import pytest
 import howso
 from howso.client import HowsoClient
 from howso.client.base import AbstractHowsoClient
-from howso.client.client import _check_isfile  # type: ignore reportPrivateUsage
 from howso.client.client import (
+    _check_isfile,  # type: ignore reportPrivateUsage
     get_configuration_path,
     get_howso_client_class,
     LEGACY_CONFIG_FILENAMES,
@@ -30,7 +30,7 @@ from howso.client.exceptions import (
     HowsoError,
 )
 from howso.client.protocols import ProjectClient
-from howso.client.schemas import Reaction, GroupReaction
+from howso.client.schemas import GroupReaction, Reaction
 from howso.direct import HowsoDirectClient
 from howso.engine import Trainee
 from howso.utilities import infer_feature_attributes
@@ -1321,6 +1321,14 @@ class TestBaseClient:
                 {'feature_full_residuals_for_case': True},
                 'feature_full_residuals_for_case',
             ),
+            (
+                {'feature_full_residuals_for_case': True},
+                'predicted_values_for_case',
+            ),
+            (
+                {'most_similar_cases': True},
+                'most_similar_cases',
+            ),
         ]
     )
     def test_react_format(self, details, trainee):
@@ -1339,9 +1347,21 @@ class TestBaseClient:
                                          details=detail_param)
             details_resp = response["details"]
 
-            if detail_name in ["influential_cases", "boundary_cases", "prediction_stats"]:
+            if detail_name in ["influential_cases", "boundary_cases", "most_similar_cases"]:
+                assert isinstance(details_resp[detail_name], list)
+                assert len(details_resp[detail_name]) == len(response["action"])
+                assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
+                # Every case table is built from the same `features` list, so they all share their columns
+                columns = details_resp[detail_name][0].columns.tolist()
+                assert all(item.columns.tolist() == columns for item in details_resp[detail_name])
+                if not all(item.empty for item in details_resp[detail_name]):
+                    assert set(df.columns).intersection(columns)
+            elif detail_name in ["prediction_stats"]:
                 assert isinstance(details_resp[detail_name], list)
                 assert all(isinstance(item, pd.DataFrame) for item in details_resp[detail_name])
+            elif detail_name in ["predicted_values_for_case", "hypothetical_values"]:
+                assert isinstance(details_resp[detail_name], pd.DataFrame)
+                assert details_resp[detail_name].index.tolist() == list(range(len(response["action"])))
             elif detail_name in ["generate_attempts", "similarity_conviction", "distance_contribution"]:
                 assert isinstance(details_resp[detail_name], list)
             elif detail_name in ["categorical_action_probabilities"]:
@@ -1431,6 +1451,40 @@ class TestBaseClient:
                 combined_detail = pd.concat([reaction_0["details"][detail_name], reaction_1["details"][detail_name]])
                 assert isinstance(reaction_0_accum["details"][detail_name], pd.DataFrame)
                 assert reaction_0_accum["details"][detail_name].equals(combined_detail)
+
+    def test_react_batched_case_details(self, trainee: Trainee):
+        """Test that case table details are accumulated across batches into the same shape as an unbatched react."""
+        df = pd.read_csv(iris_file_path)
+        contexts = [[2, 2], [1, 2], [3, 3], [2.5, 3.5], [3, 4]]
+        react_kwargs: dict[str, Any] = {
+            "contexts": contexts,
+            "context_features": ["sepal_width", "sepal_length"],
+            "action_features": ["petal_width"],
+            "details": {
+                "influential_cases": True,
+                "most_similar_cases": True,
+                "feature_full_residuals_for_case": True,
+            },
+        }
+        self.client.train(trainee.id, df)
+        self.client.analyze(trainee.id)
+        unbatched = self.client.react(trainee.id, **react_kwargs)["details"]
+        batched = self.client.react(trainee.id, batch_size=2, **react_kwargs)["details"]
+
+        for detail_name in ["influential_cases", "most_similar_cases"]:
+            assert len(batched[detail_name]) == len(contexts)
+            assert all(isinstance(case, pd.DataFrame) for case in batched[detail_name])
+            # Neighbors should be consistent for a given context, so batching must not change them
+            for batched_case, unbatched_case in zip(batched[detail_name], unbatched[detail_name], strict=True):
+                assert batched_case.equals(unbatched_case)
+
+        # Predicted values are not deterministic, so only compare their shape
+        assert "predicted_values_for_case" in batched
+        assert "predicted_values_for_case" in unbatched
+        predicted = batched["predicted_values_for_case"]
+        assert isinstance(predicted, pd.DataFrame)
+        assert predicted.index.tolist() == list(range(len(contexts)))
+        assert predicted.columns.tolist() == unbatched["predicted_values_for_case"].columns.tolist()
 
     def test_tokenizable_strings_reaction(self):
         """Test that tokenizable strings can be processed and are correctly serialized and deserialized."""
@@ -1550,6 +1604,46 @@ class TestBaseClient:
         assert inf_cases[0].iloc[0]["set_with_strings"] == df.iloc[0]["set_with_strings"]
 
 
+@pytest.mark.parametrize("batch_size", [None, 1])
+def test_react_series_influential_cases(batch_size: int | None):
+    """Test that react_series influential cases are formatted as a list of per time step DataFrames per series."""
+    df = pd.DataFrame({
+        "id": ["a"] * 5 + ["b"] * 5,
+        "time": list(range(5)) * 2,
+        "value": [float(i) for i in range(10)],
+    })
+    features = infer_feature_attributes(df, time_feature_name="time", id_feature_name="id", default_time_zone="UTC")
+    trainee = Trainee(features=features)
+    try:
+        trainee.train(df)
+        trainee.analyze()
+        reaction = trainee.react_series(
+            action_features=["id", "time", "value"],
+            batch_size=batch_size,
+            desired_conviction=5,
+            details={"influential_cases": True},
+            generate_new_cases="attempt",
+            num_series_to_generate=2,
+            series_stop_maps=[{"time": {"max": 2}}, {"time": {"max": 2}}],
+        )
+    finally:
+        trainee.delete()
+
+    series_lengths = reaction["action"].groupby(".series", sort=False).size().tolist()
+    influential_cases = reaction["details"].get("influential_cases")
+    assert isinstance(influential_cases, list)
+    # One list per series, holding one DataFrame per generated time step of that series
+    assert [len(steps) for steps in influential_cases] == series_lengths
+    for steps in influential_cases:
+        assert isinstance(steps, list)
+        for step in steps:
+            assert isinstance(step, pd.DataFrame)
+            assert {"id", "time", "value", ".influence_weight"}.issubset(step.columns)
+            if not step.empty:
+                assert step["time"].dtype == np.int64
+                assert step["value"].dtype == np.float64
+
+
 def _single_table(columns: list[str], unsupported: list[str]) -> SingleTableFeatureAttributes:
     """Build single table feature attributes with the given unsupported features."""
     attributes: dict[str, Any] = {name: {"type": "continuous"} for name in columns}
@@ -1597,7 +1691,7 @@ def test_train_drops_unsupported_feature(as_generator: bool, variant: str) -> No
     df = pd.read_csv(iris_file_path.with_name("mini_stock_data.csv"))
     df.loc[0, "CLOSE"] = FLOAT_MIN - .00001
     df.loc[1, "CLOSE"] = FLOAT_MAX + .00001
-    features = infer_feature_attributes(df, tight_bounds=["CLOSE"], enable_suggestions=False)
+    features = infer_feature_attributes(df, tight_bounds=["CLOSE"], default_time_zone="UTC", enable_suggestions=False)
     assert isinstance(features, SingleTableFeatureAttributes)
     assert features.has_unsupported_data("CLOSE")
 

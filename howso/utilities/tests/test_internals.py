@@ -692,3 +692,107 @@ def test_react_in_batches_parallel_batch_error_propagates() -> None:
             params_for_batch=internals.ParamsForBatch({"context_values"}),
             react_function=react,
         )
+
+
+def test_accumulate_react_result_merges_case_table_details() -> None:
+    """Case table details keep their ``features`` once and append each batch's per-case ``values`` in order."""
+    accumulated: dict[str, Any] = {}
+    internals.accumulate_react_result(accumulated, {
+        "action_values": [[1]],
+        "influential_cases": {"features": ["a", "b"], "values": [[[1, 2], [3, 4]]]},
+        "predicted_values_for_case": {"features": ["a"], "values": [[1]]},
+    })
+    internals.accumulate_react_result(accumulated, {
+        "action_values": [[2], [3]],
+        "influential_cases": {"features": ["a", "b"], "values": [[[5, 6]], []]},
+        "predicted_values_for_case": {"features": ["a"], "values": [[2], [3]]},
+    })
+
+    assert accumulated == {
+        "action_values": [[1], [2], [3]],
+        "influential_cases": {"features": ["a", "b"], "values": [[[1, 2], [3, 4]], [[5, 6]], []]},
+        "predicted_values_for_case": {"features": ["a"], "values": [[1], [2], [3]]},
+    }
+
+
+def test_accumulate_react_result_does_not_mutate_first_result() -> None:
+    """Accumulating result does not extend lists owned by the batch results."""
+    first = {"influential_cases": {"features": ["a"], "values": [[[1]]]}}
+    second = {"influential_cases": {"features": ["a"], "values": [[[2]]]}}
+    accumulated: dict[str, Any] = {}
+    internals.accumulate_react_result(accumulated, first)
+    internals.accumulate_react_result(accumulated, second)
+
+    assert accumulated["influential_cases"]["values"] == [[[1]], [[2]]]
+    assert first["influential_cases"]["values"] == [[[1]]]
+    assert second["influential_cases"]["values"] == [[[2]]]
+
+
+def test_accumulate_react_result_appends_series_case_table_details() -> None:
+    """Series case table details (one mapping per series) are appended per series, not merged together."""
+    first_series = {"features": ["a"], "values": [[[1]], [[2]]]}
+    second_series = {"features": ["a"], "values": [[[3]]]}
+    accumulated: dict[str, Any] = {}
+    internals.accumulate_react_result(accumulated, {"influential_cases": [first_series]})
+    internals.accumulate_react_result(accumulated, {"influential_cases": [second_series]})
+
+    assert accumulated == {"influential_cases": [first_series, second_series]}
+
+
+@pytest.mark.parametrize("key", ["action_features", "context_features"])
+def test_accumulate_react_result_sets_feature_lists_once(key: str) -> None:
+    """Top level feature name lists are taken from the first batch and are not duplicated."""
+    accumulated: dict[str, Any] = {}
+    internals.accumulate_react_result(accumulated, {key: ["a", "b"]})
+    internals.accumulate_react_result(accumulated, {key: ["a", "b"]})
+
+    assert accumulated == {key: ["a", "b"]}
+
+
+@pytest.mark.parametrize(("results", "expected"), [
+    pytest.param([None, None], None, id="none-then-none"),
+    pytest.param([None, [1, 2]], [1, 2], id="none-then-list"),
+    pytest.param([[1, 2], None], [1, 2], id="list-then-none"),
+    pytest.param(
+        [{"features": ["a"], "values": [[[1]]]}, None],
+        {"features": ["a"], "values": [[[1]]]},
+        id="mapping-then-none",
+    ),
+    pytest.param(
+        [None, {"features": ["a"], "values": [[[1]]]}],
+        {"features": ["a"], "values": [[[1]]]},
+        id="none-then-mapping",
+    ),
+])
+def test_accumulate_react_result_with_none_detail(results: list[Any], expected: Any) -> None:
+    """A batch returning None for a detail does not break accumulating the other batches' values."""
+    accumulated: dict[str, Any] = {}
+    for result in results:
+        internals.accumulate_react_result(accumulated, {"detail": result})
+
+    assert accumulated == {"detail": expected}
+
+
+class _CaseDetailsReact(_RecordingReact):
+    """React function that also returns case table details for every batch."""
+
+    def __call__(self, trainee_id: str, params: dict[str, Any]) -> tuple[dict[str, Any], int, int]:
+        """Echo the batch's context values as action values and as one influential case per context."""
+        result, in_size, out_size = super().__call__(trainee_id, params)
+        values = result["action_values"]
+        result["influential_cases"] = {"features": ["x"], "values": [[row] for row in values]}
+        result["predicted_values_for_case"] = {"features": ["x"], "values": list(values)}
+        return result, in_size, out_size
+
+
+@pytest.mark.parametrize("concurrency", [None, 1, 3])
+def test_react_in_batches_accumulates_case_table_details(concurrency: int | None) -> None:
+    """Case table details from every batch are accumulated in context order, serially and in parallel."""
+    params: dict[str, Any] = {"context_values": [[i] for i in range(5)]}
+    react = _CaseDetailsReact()
+
+    result = _run_react_in_batches(params, total_size=5, concurrency=concurrency, react=react)
+
+    assert len(react.batch_params) == 3
+    assert result["influential_cases"] == {"features": ["x"], "values": [[[i]] for i in range(5)]}
+    assert result["predicted_values_for_case"] == {"features": ["x"], "values": [[i] for i in range(5)]}

@@ -325,7 +325,7 @@ def accumulate_react_result(accumulated_result: dict[str, Any], result: Mapping[
             continue
 
         if isinstance(v, Mapping):
-            accumulated_result[k] = accumulate_react_result(accumulated_result.get(k, {}), v)
+            accumulated_result[k] = accumulate_react_result(accumulated_result.get(k) or {}, v)
             continue
 
         if accumulated_result.get(k) is None:

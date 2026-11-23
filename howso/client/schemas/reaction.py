@@ -497,10 +497,12 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         tokenizer: TokenizerProtocol | None = None,
     ) -> pd.DataFrame:
         """Format a single DataFrame of case values, were each reaction case maps to one row in the DataFrame."""
-        features = detail.get("features", [])
-        values = detail.get("values", [])
+        features = detail.get("features")
+        values = detail.get("values")
         if not features or not values:
             return pd.DataFrame(columns=features)
+        # Treat null rows as a row of nulls so each row still maps to its reaction case
+        values = [[None] * len(features) if row is None else row for row in values]
         return deserialize_cases(
             data=values,
             columns=features,
@@ -522,13 +524,14 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         DataFrame per case. This also guarantees consistent column dtypes across cases, which per-case
         inference does not.
         """
-        features = detail.get("features", [])
-        values = detail.get("values", [])
+        features = detail.get("features") or []
+        values = detail.get("values") or []
+        values = [[] if v is None else v for v in values]  # treat nulls as empty table
         flat = list(chain.from_iterable(values))
         if not flat or not features:
             return [pd.DataFrame(columns=features) for _ in values]
 
-        bounds = np.cumsum([0, *(len(table) for table in values)])
+        bounds = np.cumsum([0, *(len(v) for v in values)])
         df = deserialize_cases(
             data=flat,
             columns=features,
