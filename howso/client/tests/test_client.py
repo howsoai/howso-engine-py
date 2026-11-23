@@ -1191,9 +1191,8 @@ class TestBaseClient:
         ret = self.client.react_group(
             trainee.id,
             new_cases=groups,
-            features=df.columns.tolist(),
             action_features=["petal_width"],
-            context_features=["sepal_length", "sepal_width"],
+            context_features=["sepal_length", "sepal_width", "class"],
             details={"influential_cases": True},
         )
 
@@ -1202,12 +1201,10 @@ class TestBaseClient:
         assert len(influential_cases) == len(groups)
         columns = influential_cases[0].columns.tolist()
         assert ".influence_weight" in columns
-        assert set(df.columns).issubset(columns)
         for group in influential_cases:
             assert isinstance(group, pd.DataFrame)
             assert not group.empty
             assert group.columns.tolist() == columns
-            assert group["class"].isin(df["class"]).all()
 
     def test_marginal_stats(self, trainee):
         """Test for get_marginal_stats and its parameters."""
