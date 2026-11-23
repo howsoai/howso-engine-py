@@ -1,12 +1,12 @@
-from collections.abc import Mapping, Iterator
+from collections.abc import Iterator, Mapping
 from copy import deepcopy
 from pprint import pformat
-from typing import Any, Literal, Optional, overload, TypeAlias, TypeVar, TypedDict
+from typing import Any, Literal, overload, TypeAlias, TypedDict, TypeVar
 
 import pandas as pd
 
-from howso.utilities import format_dataframe, deserialize_cases, HowsoTokenizer, TokenizerProtocol
-from howso.utilities import internals
+from howso.client.schemas._utilities import format_case_tables
+from howso.utilities import deserialize_cases, HowsoTokenizer, internals, TokenizerProtocol
 
 __all__ = [
     "GroupReaction"
@@ -17,7 +17,7 @@ _VT = TypeVar("_VT")
 GroupDetail: TypeAlias = Literal[
     "categorical_action_probabilities",  # A dict of feature name to dict of class to probability for each group
     "context_features",  # a list of the context feature names
-    "influential_cases", # a list of dicts for each group
+    "influential_cases", # a dict of features and the case values for each group
     "feature_full_residuals", # a map of residuals for each action feature for each group
 ]
 """Detail keys that can be requested and returned through react_group."""
@@ -41,6 +41,7 @@ GroupProperty: TypeAlias = Literal["action", "metrics", "details"]
 
 class GroupDetails(TypedDict, total=False):
     """The details supported for react_group."""
+
     categorical_action_probabilities: list[dict[str, dict[Any, float]]]
     """The categorical action probabilities for each nominal action feature for each group."""
 
@@ -72,10 +73,10 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
         :class:`howso.utilities.HowsoTokenizer`.
     """
 
-    __slots__ = ("_metrics", "_action", "_details")
+    __slots__ = ("_action", "_details", "_metrics")
 
     def __init__(self, data: Mapping[str, Any] | None, attributes: Mapping,
-                 tokenizer: Optional[TokenizerProtocol] = None) -> None:
+                 tokenizer: TokenizerProtocol | None = None) -> None:
         self._action: pd.DataFrame = pd.DataFrame()
         self._metrics: pd.DataFrame = pd.DataFrame()
         self._details: GroupDetails = {}
@@ -100,17 +101,13 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
             computed_details = set(GroupDetail.__args__).intersection(data)
             for computed_detail in computed_details:
                 if computed_detail == "influential_cases":
-                    deserialized_inf_cases = []
-                    for group_inf_cases in data["influential_cases"]:
-                        # Must deserialize each collection of influential cases for each group
-                        deserialized_inf_cases.append(
-                            format_dataframe(
-                                pd.DataFrame(group_inf_cases),
-                                features=attributes,
-                                tokenizer=tokenizer,
-                            )
+                    self._details.update({
+                        "influential_cases": format_case_tables(
+                            data["influential_cases"],
+                            feature_attributes=attributes,
+                            tokenizer=tokenizer,
                         )
-                    self._details.update({"influential_cases": deserialized_inf_cases})
+                    })
                 elif computed_detail == "categorical_action_probabilities":
                     self._details.update(
                         {"categorical_action_probabilities": internals.update_caps_maps(data[computed_detail], attributes)}
@@ -132,9 +129,9 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
     def __getitem__(self, key: GroupProperty) -> Any:
         if key == "action":
             return self._action
-        elif key == "details":
+        if key == "details":
             return self._details
-        elif key == "metrics":
+        if key == "metrics":
             return self._metrics
         raise ValueError('Invalid key. Should be one of: "action", "details", or "metrics".')
 
@@ -180,9 +177,9 @@ class GroupReaction(Mapping[GroupProperty, PropertyValue]):
         def _convert(obj: Any):
             if isinstance(obj, list):
                 return [_convert(o) for o in obj]
-            elif isinstance(obj, dict):
+            if isinstance(obj, dict):
                 return {k: _convert(v) for k, v in obj.items()}
-            elif isinstance(obj, pd.DataFrame):
+            if isinstance(obj, pd.DataFrame):
                 return obj.to_dict(orient="records")
             return obj
 
