@@ -2155,18 +2155,29 @@ class Trainee(BaseTrainee):
         desired_conviction : float, optional
             See parameter ``desired_conviction`` in :meth:`react`.
         details : map of str to object
-            See parameter ``details`` in :meth:`react`.
-
-            Additional ``react_series`` only details:
-
-                - series_residuals : bool, optional
-                    If True, outputs the mean absolute deviation (MAD) of each continuous
-                    feature as the estimated uncertainty for each time-step of each
-                    generated series based on internal generative forecasts.
-                - series_residuals_num_samples : int, optional
-                    If specified, will set the number of generative forecasts used to estimate
-                    the uncertainty reported by the 'series_residuals' detail. Defaults to 30
-                    when unspecified.
+            - categorical_action_probabilities : bool, optional
+                If True, outputs probabilities for each class for the action.
+                Applicable only to categorical action features.
+            - generate_attempts : bool, optional
+                If True outputs the number of attempts taken to generate each
+                case per-series. Only applicable when 'generate_new_cases' is "always" or
+                "attempt".
+            - influential_cases : bool, optional
+                If True, outputs the most influential cases per-series and their influence
+                weights based on the surprisal of each case relative to the
+                context being predicted among the cases.
+            - series_residuals : bool, optional
+                If True, outputs the mean absolute deviation (MAD) of each continuous
+                feature as the estimated uncertainty for each timestep of each
+                generated series based on internal generative forecasts.
+            - series_residuals_num_samples : int, optional
+                If specified, will set the number of generative forecasts used to estimate
+                the uncertainty reported by the 'series_residuals' detail. Defaults to 30
+                when unspecified.
+            - **kwargs
+                Additional experimental options, as defined by the ``details`` parameter of
+                :meth:`react`. NOTE: These options are not officially
+                supported, their behavior experimental, and may change without notice.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
             attributes from the uniqueness check that happens when ``generate_new_cases``

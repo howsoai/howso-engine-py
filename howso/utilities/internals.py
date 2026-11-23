@@ -258,7 +258,7 @@ def preprocess_feature_attributes(features: Mapping | None) -> dict | None:
     return feature_attributes
 
 
-def accumulate_react_result(accumulated_result: dict, result: dict) -> dict:
+def accumulate_react_result(accumulated_result: dict[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
     """
     Accumulate the results from multiple reacts responses.
 
@@ -266,27 +266,40 @@ def accumulate_react_result(accumulated_result: dict, result: dict) -> dict:
     ----------
     accumulated_result : dict
         Accumulated react responses. This object will be mutated in place.
-    result : dict
+    result : Mapping
         The react response object.
 
     Returns
     -------
     dict
-         The updated accumulated_result dict.
+        The updated accumulated_result dict.
+
+    Raises
+    ------
+    HowsoError
+        If a batch's feature name list differs from the one already accumulated, since its values would
+        otherwise be silently misaligned with the accumulated feature names.
     """
     for k, v in result.items():
-        if accumulated_result.get(k) is None:
-            if v is None:
-                accumulated_result[k] = None
-            else:
-                accumulated_result[k] = []
 
-        if k in {'action_features', 'context_features'}:
-            # Only include action/context features once
-            if not accumulated_result[k]:
+        if k in {"action_features", "context_features", "features"}:
+            # Only include feature name lists once
+            existing = accumulated_result.get(k)
+            if not existing:
                 accumulated_result[k] = v
+            elif v and list(existing) != list(v):
+                from howso.client.exceptions import HowsoError  # noqa: PLC0415
+                raise HowsoError(
+                    f'Inconsistent "{k}" across react batches: expected {existing}, received {v}.'
+                )
             continue
 
+        if isinstance(v, Mapping):
+            accumulated_result[k] = accumulate_react_result(accumulated_result.get(k) or {}, v)
+            continue
+
+        if accumulated_result.get(k) is None:
+            accumulated_result[k] = None if v is None else []
         if v is not None:
             accumulated_result[k].extend(v)
 
