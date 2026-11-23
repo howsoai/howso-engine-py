@@ -30,7 +30,7 @@ from howso.client.exceptions import (
     HowsoError,
 )
 from howso.client.protocols import ProjectClient
-from howso.client.schemas import GroupReaction, Reaction
+from howso.client.schemas import GroupReaction, Reaction, Trainee as TraineeSchema
 from howso.direct import HowsoDirectClient
 from howso.engine import Trainee
 from howso.utilities import infer_feature_attributes
@@ -1181,6 +1181,33 @@ class TestBaseClient:
             "Improper shape of `new_cases` values passed. "
             "`new_cases` must be a 3d list of object."
         ) in str(exc.value)
+
+    def test_react_group_influential_cases(self, trainee: TraineeSchema):
+        """Test that react_group influential cases are formatted as one DataFrame per group."""
+        df = pd.read_csv(iris_file_path)
+        groups = [df.iloc[:3], df.iloc[50:52]]
+        self.client.train(trainee.id, df)
+        self.client.analyze(trainee.id)
+        ret = self.client.react_group(
+            trainee.id,
+            new_cases=groups,
+            features=df.columns.tolist(),
+            action_features=["petal_width"],
+            context_features=["sepal_length", "sepal_width"],
+            details={"influential_cases": True},
+        )
+
+        influential_cases = ret["details"].get("influential_cases")
+        assert isinstance(influential_cases, list)
+        assert len(influential_cases) == len(groups)
+        columns = influential_cases[0].columns.tolist()
+        assert ".influence_weight" in columns
+        assert set(df.columns).issubset(columns)
+        for group in influential_cases:
+            assert isinstance(group, pd.DataFrame)
+            assert not group.empty
+            assert group.columns.tolist() == columns
+            assert group["class"].isin(df["class"]).all()
 
     def test_marginal_stats(self, trainee):
         """Test for get_marginal_stats and its parameters."""
