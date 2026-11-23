@@ -200,7 +200,7 @@ class ReactDetails(TypedDict, total=False):
     """A list of the computed similarity conviction for each given case without its cluster ID."""
 
     observational_errors: pd.DataFrame
-    """A DataFrame of the observational errors for each feature defined in the feature attributes."""
+    """A DataFrame of the observational errors for each continuous feature defined in the feature attributes."""
 
     outlying_feature_values: list[dict[str, dict[str, Any]]]
     """

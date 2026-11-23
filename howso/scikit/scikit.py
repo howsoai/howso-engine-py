@@ -880,7 +880,7 @@ class HowsoEstimator(BaseEstimator):
                 robust case feature contributions. Defaults to 2000. Higher
                 values will take longer but provide more stable results.
             - observational_errors : bool, optional
-                If True, outputs observational errors for all features as
+                If True, outputs observational errors for continuous features as
                 defined in feature attributes.
             - outlying_feature_values : bool, optional
                 If True, outputs the reacted case's context feature values that
