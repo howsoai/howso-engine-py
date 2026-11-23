@@ -1,4 +1,4 @@
-"""Formatting of case data details sent by the engine as a dict of ``features`` and ``values``."""
+"""Utilities for handing react response data."""
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -22,8 +22,11 @@ def format_case_table(
         return pd.DataFrame()
     features = detail.get("features")
     values = detail.get("values")
-    if not features or not values:
+    if not values:
         return pd.DataFrame(columns=features)
+    if not features:
+        # No columns, but keep one (empty) row per case so rows stay aligned to reaction cases
+        return pd.DataFrame(index=pd.RangeIndex(len(values)))
     # Treat null rows as a row of nulls so each row still maps to its case
     values = [[None] * len(features) if row is None else row for row in values]
     return deserialize_cases(

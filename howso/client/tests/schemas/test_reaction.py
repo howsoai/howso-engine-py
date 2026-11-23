@@ -358,12 +358,12 @@ def test_single_table_case_details_with_null_rows():
     assert hypothetical.isna().all().all()
 
 
-@pytest.mark.parametrize("detail", [
-    pytest.param({"features": None, "values": None}, id="null-features-and-values"),
-    pytest.param({"features": None, "values": [None, None]}, id="null-features-null-rows"),
+@pytest.mark.parametrize(("detail", "expected_index"), [
+    pytest.param({"features": None, "values": None}, [], id="null-features-and-values"),
+    pytest.param({"features": None, "values": [None, None]}, [0, 1], id="null-features-null-rows"),
 ])
-def test_single_table_case_details_with_null_features(detail: dict[str, Any]):
-    """Tests that a one-to-one case detail without features is formatted as an empty DataFrame."""
+def test_single_table_case_details_with_null_features(detail: dict[str, Any], expected_index: list[int]):
+    """Tests that a one-to-one case detail without features keeps one columnless row per case."""
     df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
     attributes = infer_feature_attributes(df)
     details = {"action_features": ["num"], "predicted_values_for_case": detail}
@@ -371,6 +371,35 @@ def test_single_table_case_details_with_null_features(detail: dict[str, Any]):
     assert isinstance(predicted, pd.DataFrame)
     assert predicted.empty
     assert predicted.columns.tolist() == []
+    assert predicted.index.tolist() == expected_index
+
+
+def test_accumulate_single_table_case_details_with_null_features():
+    """Tests that per-case placeholder rows without features stay aligned to action rows after accumulation."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2], "nom": ["a", "b"]})
+    attributes = infer_feature_attributes(df)
+    reaction = Reaction(
+        df[["num"]],
+        {"action_features": ["num"], "predicted_values_for_case": {"features": None, "values": [None, None]}},
+        attributes,
+    )
+    reaction.accumulate(Reaction(
+        df[["num"]].iloc[1:],
+        {
+            "action_features": ["num"],
+            "predicted_values_for_case": {"features": ["num", "int", "nom"], "values": [[2.5, 2, "b"]]},
+        },
+        attributes,
+    ))
+
+    predicted = reaction["details"].get("predicted_values_for_case")
+    assert isinstance(predicted, pd.DataFrame)
+    assert len(reaction["action"]) == 3
+    assert len(predicted) == len(reaction["action"])
+    assert predicted.columns.tolist() == ["num", "int", "nom"]
+    # The prediction must land on the third action row, after the two placeholder rows
+    assert predicted.iloc[:2].isna().all().all()
+    assert predicted.iloc[2].tolist() == [2.5, 2, "b"]
 
 
 def test_accumulate_case_details():
