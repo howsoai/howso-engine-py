@@ -515,7 +515,6 @@ class Reaction(Mapping[ReactionKey, pd.DataFrame | ReactDetails]):
         *,
         tokenizer: TokenizerProtocol | None = None,
     ) -> list[pd.DataFrame]:
-        """Format multiple DataFrames of case values, were each reaction case maps to one of the DataFrames."""
         """
         Format a list of per-case case-tables into a list of DataFrames in one formatting pass.
 

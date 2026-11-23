@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -106,7 +108,7 @@ def test_cases_with_details_instantiate():
     assert cwd['action'].shape[0] == 4
 
 
-def test_case_list_details_have_consistent_dtypes():
+def test_multi_table_details_have_consistent_dtypes():
     """Tests that per-case DataFrame details are formatted with consistent dtypes across all cases."""
     df = pd.DataFrame({
         "num": [1.5, 2.5, 3.5, 4.5],
@@ -116,25 +118,31 @@ def test_case_list_details_have_consistent_dtypes():
     })
     # Feature attributes are inferred from typed data, but case details arrive from the engine as serialized
     # values (datetimes as strings), so keep `rows` as the raw string form.
-    rows = df.to_dict(orient="records")
+    rows = df.values.tolist()
     df["datetime"] = pd.to_datetime(df["datetime"])
     attributes = infer_feature_attributes(df, default_time_zone="UTC")
+    features = ["num", "int", "nom", "datetime", ".influence_weight"]
     # Second case has whole-number influence weights, which per-case inference would type as int64.
     details = {
         "action_features": ["num"],
-        "influential_cases": [
-            [{**rows[0], ".influence_weight": 0.5}, {**rows[1], ".influence_weight": 0.5}],
-            [{**rows[2], ".influence_weight": 1}],
-            [],
-            [{**rows[3], ".influence_weight": 0.25}, {**rows[0], ".influence_weight": 0.75}],
-        ],
+        "influential_cases": {
+            "features": features,
+            "values": [
+                [[*rows[0], 0.5], [*rows[1], 0.5]],
+                [[*rows[2], 1]],
+                [],
+                [[*rows[3], 0.25], [*rows[0], 0.75]],
+            ],
+        },
     }
     reaction = Reaction(df[["num"]], details, attributes)
-    cases = reaction["details"]["influential_cases"]
+    cases = reaction["details"].get("influential_cases")
 
+    assert isinstance(cases, list)
     assert len(cases) == 4
-    assert cases[2].empty
     assert all(isinstance(case, pd.DataFrame) for case in cases)
+    assert all(case.columns.tolist() == features for case in cases)
+    assert cases[2].empty
     for case in (cases[0], cases[1], cases[3]):
         assert case.index.tolist() == list(range(len(case)))
         assert case["num"].dtype == np.float64
@@ -145,84 +153,192 @@ def test_case_list_details_have_consistent_dtypes():
     assert cases[3]["nom"].tolist() == ["d", "a"]
 
 
-def test_case_list_details_with_non_uniform_keys():
-    """Tests that per-case details whose rows have differing keys are still formatted per case."""
+def test_multi_table_details_column_order_follows_features():
+    """Tests that per-case DataFrame columns follow the order of the detail's `features` list."""
     df = pd.DataFrame({"num": [1.5, 2.5], "nom": ["a", "b"]})
     attributes = infer_feature_attributes(df)
     details = {
         "action_features": ["num"],
-        "most_similar_cases": [
-            [{"num": 1.5, "nom": "a"}],
-            [{"num": 2.5}],
-        ],
+        "most_similar_cases": {
+            "features": ["nom", "num"],
+            "values": [[["a", 0.5]], [["b", 2.5], ["a", 1.5]]],
+        },
     }
-    cases = Reaction(df[["num"]], details, attributes)["details"]["most_similar_cases"]
-    assert cases[0].columns.tolist() == ["num", "nom"]
-    assert cases[1].columns.tolist() == ["num"]
+    cases = Reaction(df[["num"]], details, attributes)["details"].get("most_similar_cases")
+    assert isinstance(cases, list)
+    assert [case.columns.tolist() for case in cases] == [["nom", "num"], ["nom", "num"]]
+    assert cases[1]["nom"].tolist() == ["b", "a"]
+    assert cases[1]["num"].tolist() == [2.5, 1.5]
 
 
-def test_case_list_details_nested_per_series():
-    """Tests that per-case details nested one level deeper (as in `react_series`) are still formatted per case."""
-    df = pd.DataFrame({"num": [1.5, 2.5, 3.5], "int": [1, 2, 3]})
-    attributes = infer_feature_attributes(df)
-    rows = df.to_dict(orient="records")
-    # Two series, each with two time steps, each step holding a list of influential cases.
-    details = {
-        "action_features": ["num"],
-        "influential_cases": [
-            [
-                [{**rows[0], ".influence_weight": 1}],
-                [{**rows[1], ".influence_weight": 0.5}, {**rows[2], ".influence_weight": 0.5}],
-            ],
-            [[{**rows[2], ".influence_weight": 0.25}], []],
-        ],
-    }
-    series = Reaction(df[["num"]], details, attributes)["details"]["influential_cases"]
-    assert len(series) == 2
-    assert all(len(steps) == 2 for steps in series)
-    assert series[1][1].empty
-    for steps in series:
-        for step in steps:
-            assert isinstance(step, pd.DataFrame)
-            if not step.empty:
-                assert step["int"].dtype == np.int64
-                assert step[".influence_weight"].dtype == np.float64
-    assert series[0][1]["num"].tolist() == [2.5, 3.5]
-
-
-def test_case_list_details_with_ragged_rows_within_a_case():
-    """Tests that a case whose rows have differing keys falls back to per-case formatting with a column union."""
-    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2], "nom": ["a", "b"]})
-    attributes = infer_feature_attributes(df)
-    details = {
-        "action_features": ["num"],
-        "influential_cases": [
-            [{"num": 1.5, "int": 1, "nom": "a"}, {"num": 2.5, "nom": "b"}],
-            [{"num": 1.5, "int": 1, "nom": "a"}],
-        ],
-    }
-    cases = Reaction(df[["num"]], details, attributes)["details"]["influential_cases"]
-    assert [list(case.columns) for case in cases] == [["num", "int", "nom"], ["num", "int", "nom"]]
-    # The missing value is filled with a null, so the integer column becomes nullable for that case only.
-    assert str(cases[0]["int"].dtype) == "Int64"
-    assert cases[0]["int"].isna().tolist() == [False, True]
-    assert cases[0]["int"].iloc[0] == 1
-    assert str(cases[1]["int"].dtype) == "int64"
-    assert cases[0]["nom"].tolist() == ["a", "b"]
-
-
-def test_case_list_details_with_non_dict_row():
-    """Tests that a case containing a non-dict row is left untouched rather than forced into a DataFrame."""
+def test_multi_table_details_without_any_rows():
+    """Tests that per-case details with no rows produce one empty DataFrame per case, keeping the columns."""
     df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
     attributes = infer_feature_attributes(df)
     details = {
         "action_features": ["num"],
+        "boundary_cases": {"features": ["num", "int"], "values": [[], []]},
+        "influential_cases": {"features": ["num", "int"], "values": []},
+    }
+    formatted = Reaction(df[["num"]], details, attributes)["details"]
+
+    boundary_cases = formatted.get("boundary_cases")
+    assert isinstance(boundary_cases, list)
+    assert len(boundary_cases) == 2
+    for case in boundary_cases:
+        assert isinstance(case, pd.DataFrame)
+        assert case.empty
+        assert case.columns.tolist() == ["num", "int"]
+    assert formatted.get("influential_cases") == []
+
+
+def test_multi_table_details_nested_per_series():
+    """Tests that per-case details nested one level deeper (as in `react_series`) are still formatted per case."""
+    df = pd.DataFrame({"num": [1.5, 2.5, 3.5], "int": [1, 2, 3]})
+    attributes = infer_feature_attributes(df)
+    rows = df.values.tolist()
+    features = ["num", "int", ".influence_weight"]
+    # Two series, each with two time steps, each step holding a list of influential cases.
+    details = {
+        "action_features": ["num"],
         "influential_cases": [
-            [{"num": 1.5, "int": 1}, None],
-            [{"num": 2.5, "int": 2}],
+            {
+                "features": features,
+                "values": [
+                    [[*rows[0], 1]],
+                    [[*rows[1], 0.5], [*rows[2], 0.5]],
+                ],
+            },
+            {"features": features, "values": [[[*rows[2], 0.25]], []]},
         ],
     }
-    cases = Reaction(df[["num"]], details, attributes)["details"]["influential_cases"]
-    assert cases[0] == [{"num": 1.5, "int": 1}, None]
-    assert isinstance(cases[1], pd.DataFrame)
-    assert cases[1]["int"].dtype == np.int64
+    series = Reaction(df[["num"]], details, attributes)["details"].get("influential_cases")
+    assert isinstance(series, list)
+    assert len(series) == 2
+    assert all(isinstance(steps, list) and len(steps) == 2 for steps in series)
+    assert series[1][1].empty
+    for steps in series:
+        for step in steps:
+            assert isinstance(step, pd.DataFrame)
+            assert step.columns.tolist() == features
+            if not step.empty:
+                assert step["int"].dtype == np.int64
+                assert step[".influence_weight"].dtype == np.float64
+    # The whole-number weight in the first step is batched with the rest of its series, so it is a float too.
+    assert series[0][0][".influence_weight"].tolist() == [1.0]
+    assert series[0][1]["num"].tolist() == [2.5, 3.5]
+
+
+def test_single_table_case_details():
+    """Tests that one-to-one case details are formatted into a single DataFrame with one row per reaction case."""
+    df = pd.DataFrame({
+        "num": [1.5, 2.5],
+        "int": [1, 2],
+        "nom": ["a", "b"],
+        "datetime": ["2020-09-12T09:09:09", "2020-10-12T10:10:10"],
+    })
+    rows = df.values.tolist()
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    attributes = infer_feature_attributes(df, default_time_zone="UTC")
+    details = {
+        "action_features": ["num"],
+        "predicted_values_for_case": {"features": ["num", "int", "nom", "datetime"], "values": rows},
+        "hypothetical_values": {"features": ["int", "nom"], "values": [[2, "b"], [1, "a"]]},
+    }
+    formatted = Reaction(df[["num"]], details, attributes)["details"]
+
+    predicted = formatted.get("predicted_values_for_case")
+    assert isinstance(predicted, pd.DataFrame)
+    assert predicted.columns.tolist() == ["num", "int", "nom", "datetime"]
+    assert predicted.index.tolist() == [0, 1]
+    assert predicted["num"].dtype == np.float64
+    assert predicted["int"].dtype == np.int64
+    assert pd.api.types.is_datetime64_any_dtype(predicted["datetime"])
+    assert predicted["nom"].tolist() == ["a", "b"]
+
+    hypothetical = formatted.get("hypothetical_values")
+    assert isinstance(hypothetical, pd.DataFrame)
+    assert hypothetical.columns.tolist() == ["int", "nom"]
+    assert hypothetical["int"].tolist() == [2, 1]
+    assert hypothetical["nom"].tolist() == ["b", "a"]
+
+
+def test_single_table_case_details_without_values():
+    """Tests that one-to-one case details with no values produce an empty DataFrame that keeps its columns."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
+    attributes = infer_feature_attributes(df)
+    details = {
+        "action_features": ["num"],
+        "predicted_values_for_case": {"features": ["num", "int"], "values": []},
+    }
+    predicted = Reaction(df[["num"]], details, attributes)["details"].get("predicted_values_for_case")
+    assert isinstance(predicted, pd.DataFrame)
+    assert predicted.empty
+    assert predicted.columns.tolist() == ["num", "int"]
+
+
+def test_accumulate_case_details():
+    """Tests that accumulating reactions extends per-case DataFrame lists and concatenates single-table details."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
+    attributes = infer_feature_attributes(df)
+    rows = df.values.tolist()
+
+    def _make_reaction(case_rows: list[list[Any]]) -> Reaction:
+        return Reaction(
+            df[["num"]],
+            {
+                "action_features": ["num"],
+                "influential_cases": {"features": ["num", "int"], "values": [[row] for row in case_rows]},
+                "predicted_values_for_case": {"features": ["num", "int"], "values": case_rows},
+            },
+            attributes,
+        )
+
+    reaction = _make_reaction(rows)
+    reaction.accumulate(_make_reaction(rows[::-1]))
+
+    influential_cases = reaction["details"].get("influential_cases")
+    assert isinstance(influential_cases, list)
+    assert len(influential_cases) == 4
+    assert [case["int"].tolist() for case in influential_cases] == [[1], [2], [2], [1]]
+
+    predicted = reaction["details"].get("predicted_values_for_case")
+    assert isinstance(predicted, pd.DataFrame)
+    assert predicted["int"].tolist() == [1, 2, 2, 1]
+    assert predicted["int"].dtype == np.int64
+
+
+def test_relevant_values():
+    """Tests that `relevant_values` is formatted into a dict of feature name to Series for each reaction case."""
+    df = pd.DataFrame({"num": [1.5, 2.5, 3.5], "int": [1, 2, 3], "nom": ["a", "b", "c"]})
+    attributes = infer_feature_attributes(df)
+    details = {
+        "action_features": ["num"],
+        "relevant_values": {
+            "features": ["int", "nom"],
+            "values": [
+                [[1, 2], ["a", "b"]],
+                [[3], ["c", "a", "b"]],
+            ],
+        },
+    }
+    relevant_values = Reaction(df[["num"]], details, attributes)["details"].get("relevant_values")
+    assert isinstance(relevant_values, list)
+    assert len(relevant_values) == 2
+    for case in relevant_values:
+        assert list(case.keys()) == ["int", "nom"]
+        assert all(isinstance(series, pd.Series) for series in case.values())
+        assert case["int"].name == "int"
+        assert case["int"].dtype == np.int64
+    assert relevant_values[0]["int"].tolist() == [1, 2]
+    assert relevant_values[1]["nom"].tolist() == ["c", "a", "b"]
+
+
+def test_relevant_values_non_mapping_is_unchanged():
+    """Tests that a non-mapping `relevant_values` (as in `react_series`) is returned as-is."""
+    df = pd.DataFrame({"num": [1.5, 2.5], "int": [1, 2]})
+    attributes = infer_feature_attributes(df)
+    relevant_values = [{"features": ["int"], "values": [[[1, 2]]]}]
+    details = {"action_features": ["num"], "relevant_values": relevant_values}
+    formatted = Reaction(df[["num"]], details, attributes)["details"].get("relevant_values")
+    assert formatted == relevant_values
