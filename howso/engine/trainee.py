@@ -2176,7 +2176,7 @@ class Trainee(BaseTrainee):
                 when unspecified.
             - **kwargs
                 Additional experimental options, as defined by the ``details`` parameter of
-                :meth:`AbstractHowsoClient.react`. NOTE: These options are not officially
+                :meth:`react`. NOTE: These options are not officially
                 supported, their behavior experimental, and may change without notice.
         exclude_novel_nominals_from_uniqueness_check : bool, default False
             If True, will exclude features which have a subtype defined in their feature
