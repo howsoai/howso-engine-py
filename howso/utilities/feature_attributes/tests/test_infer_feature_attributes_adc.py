@@ -638,7 +638,7 @@ def test_dataframe_datetime64_dtype_column():
     ("DataFrameData", pd.DataFrame()),
 ], indirect=True)
 def test_infer_tokenizable_string(adc):
-    """Test that IFA correctly detects and sets feature attributes for short tokenizable text."""
+    """Test that IFA sets tokenizable string attributes for features named in `text_features`."""
     data = {
         "product": [
             "turbo-encabulator",
@@ -659,7 +659,7 @@ def test_infer_tokenizable_string(adc):
     }
     df = pd.DataFrame(data)
     convert_data(DataFrameData(df), adc)
-    feature_attributes = infer_feature_attributes(adc, types={"continuous": ["review"]}, enable_suggestions=False)
+    feature_attributes = infer_feature_attributes(adc, text_features=["review"], enable_suggestions=False)
     assert feature_attributes["review"]["data_type"] == "json"
     assert feature_attributes["review"]["type"] == "continuous"
     assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"

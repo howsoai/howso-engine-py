@@ -1532,7 +1532,7 @@ class TestBaseClient:
             ],
         }
         df = pd.DataFrame(data)
-        feature_attributes = infer_feature_attributes(df, types={"review": "continuous"})
+        feature_attributes = infer_feature_attributes(df, text_features=["review"])
         assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
         assert feature_attributes["review"]["data_type"] == "json"
         assert feature_attributes["review"]["type"] == "continuous"
@@ -1570,7 +1570,7 @@ class TestBaseClient:
             ],
         }
         df = pd.DataFrame(data)
-        feature_attributes = infer_feature_attributes(df, types={"review": "continuous"}, enable_suggestions=False)
+        feature_attributes = infer_feature_attributes(df, text_features=["review"], enable_suggestions=False)
         assert feature_attributes["review"]["original_type"]["data_type"] == "tokenizable_string"
         assert feature_attributes["review"]["data_type"] == "json"
         assert feature_attributes["review"]["type"] == "continuous"

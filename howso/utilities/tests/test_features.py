@@ -120,8 +120,7 @@ def test_feature_deserialization(data_format, data, original_type, should_warn):
         columns = ['a']
         df = pd.DataFrame(pd.Series(data, name='a'))
         if original_type["data_type"] == FeatureType.TOKENIZABLE_STRING.value:
-            # Tokenizable strings must have their type pre-set to "continuous"
-            features = infer_feature_attributes(df, default_time_zone="UTC", types={"a": "continuous"},
+            features = infer_feature_attributes(df, default_time_zone="UTC", text_features=["a"],
                                                 enable_suggestions=False)
         else:
             features = infer_feature_attributes(df, default_time_zone="UTC", enable_suggestions=False)

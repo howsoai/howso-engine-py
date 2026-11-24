@@ -39,6 +39,7 @@ class IFAWarningEmitterType(Enum):
     VALUE_COUNTS_PROCESSING = "value_counts_processing"
     EXCESSIVE_FLOAT_PRECISION = "excessive_float_precision"
     POSSIBLE_EXCESSIVE_FLOAT_PRECISION = "possible_excessive_float_precision"
+    DATE_OVERRIDE_DROPS_TIME = "date_override_drops_time"
     SIMPLE = "simple"
 
 
@@ -150,6 +151,17 @@ class PossibleExcessiveFloatPrecisionWarningEmitter(FloatPrecisionWarningEmitter
     _certainty = "may contain"
 
 
+class DateOverrideDropsTimeWarningEmitter(IFAWarningEmitter):
+    """Emitter for a warning about datetime features that ``data_type_overrides`` sets to "date"."""
+
+    def emit(self) -> None:
+        """Emit the warning."""
+        warnings.warn('The following features hold datetimes but are set to "date" in `data_type_overrides`: '
+                      f"{self.features_list}"
+                      "Their values are trained as dates only; the time of day and time zone of each value are "
+                      "dropped.", UserWarning, stacklevel=_user_stacklevel())
+
+
 class SimpleWarningEmitter(IFAWarningEmitter):
     """Emitter for simple warnings that are saved via the `features_list`."""
 
@@ -172,6 +184,7 @@ class IFAWarningCollector:
         IFAWarningEmitterType.VALUE_COUNTS_PROCESSING: ValueCountsProcessing,
         IFAWarningEmitterType.EXCESSIVE_FLOAT_PRECISION: ExcessiveFloatPrecisionWarningEmitter,
         IFAWarningEmitterType.POSSIBLE_EXCESSIVE_FLOAT_PRECISION: PossibleExcessiveFloatPrecisionWarningEmitter,
+        IFAWarningEmitterType.DATE_OVERRIDE_DROPS_TIME: DateOverrideDropsTimeWarningEmitter,
         IFAWarningEmitterType.SIMPLE: SimpleWarningEmitter,
     }
 

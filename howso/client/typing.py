@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Collection, Mapping, MutableMapping, MutableSequence, Set as AbstractSet
 import os
 from typing import Any, Literal, Union
 
@@ -678,3 +678,33 @@ AblationThresholdMap: TypeAlias = dict[_ThresholdMeasureKey, dict[str, float]]
 """Threshold map(s) for auto-ablation and data reduction."""
 
 FeatureType: TypeAlias = Literal["continuous", "ordinal", "nominal"]
+
+DataTypeDescriptor: TypeAlias = Literal[
+    "boolean",
+    "number",
+    "date",
+    "datetime",
+    "time",
+    "timedelta",
+    "string",
+    "string_mixable",
+    "amalgam",
+    "json",
+    "yaml",
+]
+"""How :func:`~howso.utilities.infer_feature_attributes` is to process a feature, given in ``data_type_overrides``."""
+
+DataTypeOverrides: TypeAlias = Union[Mapping[str, DataTypeDescriptor], Mapping[DataTypeDescriptor, Collection[str]]]
+"""
+The accepted forms of ``data_type_overrides``.
+
+Either every feature name mapped to a data type descriptor or every data type descriptor mapped
+to a collection of feature names.
+"""
+
+TextFeatures: TypeAlias = Union[MutableSequence[str], tuple[str, ...], AbstractSet[str]]
+"""
+The names of the features that :func:`~howso.utilities.infer_feature_attributes` is to process as text.
+
+Any collection of names other than a string, which would be read as its characters.
+"""
