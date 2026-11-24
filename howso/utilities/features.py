@@ -6,13 +6,13 @@ from enum import Enum
 from functools import partial
 import json
 import locale
-from typing import Any, cast, Literal, TypeAlias
+from typing import Any, cast, TYPE_CHECKING, TypeAlias
 import warnings
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
-from pandas.api.extensions import ExtensionArray, ExtensionDtype
+from pandas.api.extensions import ExtensionArray
 from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
     is_timedelta64_dtype,
@@ -29,6 +29,9 @@ from howso.utilities.utilities import (
     tokenize_strings,
 )
 
+if TYPE_CHECKING:
+    from pandas._typing import AstypeArg
+
 __all__ = [
     "ColumnValues",
     "FeatureSerializer",
@@ -40,6 +43,9 @@ __all__ = [
 
 ColumnValues: TypeAlias = Sequence[Any] | np.ndarray | ExtensionArray | pd.Series
 """The values of one column: a list of case values or an existing array/Series."""
+
+_TRUE = frozenset({"true", "y", "yes", "on", ".true"})
+"""String values that translate to True for boolean data."""
 
 
 class FeatureType(Enum):
@@ -440,29 +446,36 @@ class FeatureSerializer:
             if index is None:
                 index = column.index
 
-        match data_type:
-            case FeatureType.NUMERIC.value:
-                return cls._format_numeric_column(column, feature, index, name)
-            case FeatureType.INTEGER.value:
-                return cls._format_integer_column(column, feature, index, name)
-            case FeatureType.STRING.value:
-                return cls._format_string_column(column, feature, index, name)
-            case FeatureType.TOKENIZABLE_STRING.value:
-                return cls._format_tokenizable_string_column(column, feature, index, name, tokenizer=tokenizer)
-            case FeatureType.DATETIME.value:
-                return cls._format_datetime_column(column, feature, index, name)
-            case FeatureType.DATE.value:
-                return cls._format_date_column(column, feature, index, name)
-            case FeatureType.TIME.value:
-                return cls._format_time_column(column, feature, index, name)
-            case FeatureType.TIMEDELTA.value:
-                return cls._format_timedelta_column(column, feature, index, name)
-            case FeatureType.BOOLEAN.value:
-                return cls._format_boolean_column(column, feature, index, name)
-            case FeatureType.CONTAINER.value:
-                return cls._format_container_column(column, feature, index, name)
-            case _:
-                return cls._format_unknown_column(column, feature, index, name)
+        try:
+            match data_type:
+                case FeatureType.NUMERIC.value:
+                    return cls._format_numeric_column(column, feature, index, name)
+                case FeatureType.INTEGER.value:
+                    return cls._format_integer_column(column, feature, index, name)
+                case FeatureType.STRING.value:
+                    return cls._format_string_column(column, feature, index, name)
+                case FeatureType.TOKENIZABLE_STRING.value:
+                    return cls._format_tokenizable_string_column(column, feature, index, name, tokenizer=tokenizer)
+                case FeatureType.DATETIME.value:
+                    return cls._format_datetime_column(column, feature, index, name)
+                case FeatureType.DATE.value:
+                    return cls._format_date_column(column, feature, index, name)
+                case FeatureType.TIME.value:
+                    return cls._format_time_column(column, feature, index, name)
+                case FeatureType.TIMEDELTA.value:
+                    return cls._format_timedelta_column(column, feature, index, name)
+                case FeatureType.BOOLEAN.value:
+                    return cls._format_boolean_column(column, feature, index, name)
+                case FeatureType.CONTAINER.value:
+                    return cls._format_container_column(column, feature, index, name)
+                case _:
+                    return cls._format_unknown_column(column, feature, index, name)
+        except Exception:  # noqa: BLE001
+            warnings.warn(
+                f'Unable to format {data_type} column "{name}". Column will retain inferred dtype.',
+                stacklevel=2,
+            )
+            return cls._to_series(column, index=index, name=name)
 
     @classmethod
     def _format_timedelta_column(
@@ -729,22 +742,33 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        try:
+        nullable = feature.get("bounds", {}).get("null_observed", False)
 
-            def _apply_bool(value: Any) -> bool | None:
-                if pd.isna(value):
-                    return value
-                if isinstance(value, str):
-                    return value.lower() in ["true", "yes", "on", "(true)"]
+        def _to_code(value: Any) -> int:
+            # 0 = False, 1 = True, 2 = null
+            if value is True or value is False:
+                return value
+            if value is None:
+                return 2
+            if isinstance(value, int):
                 return bool(value)
+            if isinstance(value, str):
+                return value.strip().lower() in _TRUE
+            if pd.api.types.is_scalar(value) and pd.isna(value):
+                return 2
+            return bool(value)
 
-            return column.apply(_apply_bool)
-        except Exception:  # noqa: BLE001
-            warnings.warn(
-                f'Unable to parse column "{name}" as boolean. Column will retain current dtype.',
-                stacklevel=3,
-            )
-            return column
+        # Encode all values in one pass into a compact array
+        codes = np.fromiter(map(_to_code, values), dtype=np.uint8, count=len(values))
+        mask = codes == 2  # null values
+        if nullable or mask.any():
+            # Nullable boolean array, masked positions become <NA>
+            array = pd.arrays.BooleanArray(codes == 1, mask)
+        else:
+            # Plain bool array when no nulls present
+            array = codes == 1
+        return cls._to_series(array, index=index, name=name)
+
 
     @classmethod
     def _format_integer_column(
@@ -844,29 +868,21 @@ class FeatureSerializer:
             The formatted column.
         """
         typing_info = cls._get_typing_info(feature)
-        type_name = "float"
 
-        try:
-            if typing_info.get("format") == "decimal":
-                type_name = "Decimal"
-                # Note: We cast to string first here in attempt to prevent floating point errors.
-                decimals = [decimal.Decimal(str(x)) if x is not None else None for x in values]
-                return cls._to_series(decimals, index, name)
+        if typing_info.get("format") == "decimal":
+            # Note: We cast to string first here in attempt to prevent floating point errors.
+            decimals = [decimal.Decimal(str(x)) if x is not None else None for x in values]
+            return cls._to_series(decimals, index, name)
 
-            if feature.get("subtype") == "int-id" or feature.get("unique"):
-                # unique or int-id features are output as 64bit ints, leave as-is ignore original type size
-                type_name = "float"
-            else:
-                size = typing_info.get("size")
-                type_name = f"float{size * 8}" if size in {1, 2, 4, 8, 16} else "float"
+        if feature.get("subtype") == "int-id" or feature.get("unique"):
+            # unique or int-id features are output as 64bit ints, leave as-is ignore original type size
+            dtype = "float"
+        else:
+            size = typing_info.get("size")
+            dtype = f"float{size * 8}" if size in {1, 2, 4, 8, 16} else "float"
 
-            return cls._to_series(values, index, name, dtype=np.dtype(type_name))
-        except Exception:  # noqa: BLE001
-            warnings.warn(
-                f'Unable to parse column "{name}" as {type_name}. Column will retain current dtype.',
-                stacklevel=3,
-            )
-            return cls._to_series(values, index, name)
+        return cls._to_series(values, index, name, dtype=np.dtype(dtype))
+
 
     @classmethod
     def _format_string_column(
@@ -1002,7 +1018,7 @@ class FeatureSerializer:
         name: Hashable | None = None,
         *,
         copy: bool = False,
-        dtype: np.dtype | ExtensionDtype | Literal["object"] | None = None,
+        dtype: AstypeArg | None = None,
     ) -> pd.Series:
         """
         Make a Series of `values`, with `index` and `name` applied by position (never aligned).
@@ -1023,7 +1039,7 @@ class FeatureSerializer:
         copy : bool,  default False
             If values should be copied when constructing the Series object.
             (Only applies to numpy or extension arrays)
-        dtype : numpy.dtype or ExtensionDtype or "object", optional
+        dtype : AstypeArg, optional
             The dtype to convert to. Defaults to the dtype of `values` when it is an array, otherwise pandas'
             default inference.
 
@@ -1038,6 +1054,7 @@ class FeatureSerializer:
             if index is not None and values.index is not index:
                 values = values.set_axis(index)
             if name is not None and values.name != name:
+                values = values.copy(deep=False)
                 values.name = name
             return values
         if dtype is None and isinstance(values, (np.ndarray, ExtensionArray)):
