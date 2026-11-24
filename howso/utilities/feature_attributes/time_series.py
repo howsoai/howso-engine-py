@@ -34,8 +34,10 @@ from howso.utilities.utilities import (
 
 if t.TYPE_CHECKING:
     from howso.client.typing import (
+        DataTypeOverrides,
         PreserveRareValues,
         PreserveRareValuesCaps,
+        TextFeatures,
     )
 
 logger = logging.getLogger(__name__)
@@ -204,7 +206,7 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     time_feature_deltas = None
 
     for f_name in feature_names:
-        if features[f_name].get("data_type") in {"json", "yaml", "amalgam", "string_mixable"}:
+        if features[f_name].get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
             continue
 
         if features[f_name].get("type") != "continuous" or "time_series" not in features[f_name]:
@@ -366,6 +368,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         self,
         attempt_infer_extended_nominals: bool = False,
         max_rows_to_eval: int = 10_000_000,
+        data_type_overrides: t.Optional[DataTypeOverrides] = None,
         datetime_feature_formats: t.Optional[dict] = None,
         default_time_zone: t.Optional[str] = None,
         delta_boundaries: t.Optional[dict] = None,
@@ -392,6 +395,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         preserve_rare_values_min_cases: int = PRESERVE_RARE_VALUES_MIN_CASES_DEFAULT,
         rate_boundaries: t.Optional[dict] = None,
         time_invariant_features: t.Optional[Iterable[str]] = None,
+        text_features: t.Optional[TextFeatures] = None,
         tight_bounds: t.Optional[Iterable[str]] = None,
         time_feature_is_universal: t.Optional[bool] = None,
         time_series_type_default: t.Optional[str] = "rate",
@@ -420,6 +424,10 @@ class InferFeatureAttributesTimeSeries(ABC):
             (Optional) If using a data source with streaming capabilities, sets the maximum number of
             rows to consider when inferring feature attributes where applicable. Useful for preventing
             excessive runtimes with very large data. If not provided, defaults to 10 million rows.
+
+        data_type_overrides : dict of str to list or str, optional
+            (Optional) Dict that configures how features are to be processed. See
+            ``infer_feature_attributes`` for details.
 
         datetime_feature_formats : dict, default None
             (Optional) Dict defining a custom (non-ISO8601) datetime format and
@@ -690,6 +698,10 @@ class InferFeatureAttributesTimeSeries(ABC):
                     }
                 }
 
+        text_features : list of str, optional
+            (Optional) Names of features that hold text that can be tokenized. See
+            ``infer_feature_attributes`` for details.
+
         tight_bounds: Iterable of str, default None
             (Optional) Set tight min and max bounds for the features
             specified in the Iterable.
@@ -811,6 +823,7 @@ class InferFeatureAttributesTimeSeries(ABC):
         features = infer(
             attempt_infer_extended_nominals=attempt_infer_extended_nominals,
             max_rows_to_eval=max_rows_to_eval,
+            data_type_overrides=data_type_overrides,
             datetime_feature_formats=datetime_feature_formats,
             default_time_zone=default_time_zone,
             dependent_features=dependent_features,
@@ -831,6 +844,7 @@ class InferFeatureAttributesTimeSeries(ABC):
             preserve_rare_values_caps=preserve_rare_values_caps,
             preserve_rare_values_distilled_min_cases=preserve_rare_values_distilled_min_cases,
             preserve_rare_values_min_cases=preserve_rare_values_min_cases,
+            text_features=text_features,
             tight_bounds=set(tight_bounds) if tight_bounds else None,
             types=types,
         )
@@ -855,7 +869,7 @@ class InferFeatureAttributesTimeSeries(ABC):
                 # Non-continuous or semi-structure types get just an empty "time_series" dict.
                 elif (
                     features[f_name]["type"] != "continuous" or
-                    features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string_mixable"}
+                    features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string", "string_mixable"}
                 ):
                     features[f_name]["time_series"] = {}
                 # The remaining get the default "type"
@@ -1243,7 +1257,7 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             for f_name, f_attrs in features.items()
             if f_attrs.get("type") == "continuous"
             and "time_series" in f_attrs
-            and f_attrs.get("data_type") not in {"json", "yaml", "amalgam", "string_mixable"}
+            and f_attrs.get("data_type") not in {"json", "yaml", "amalgam", "string", "string_mixable"}
         ]
 
         if not continuous_ts_features:

@@ -87,6 +87,9 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         """Process and return feature attributes."""
         self._validate_rare_value_parameters(kwargs.get("preserve_rare_values"),
                                              kwargs.get("preserve_rare_values_caps"))
+        self._validate_data_type_parameters(kwargs.get("data_type_overrides"), kwargs.get("text_features"),
+                                           kwargs.get("ordinal_feature_values"),
+                                           kwargs.get("datetime_feature_formats"), kwargs.get("types"))
         max_workers = kwargs.pop("max_workers", None)
         # The default with be to not use multiprocessing if the product of rows
         # and columns is less than 25M.
@@ -379,10 +382,12 @@ class InferFeatureAttributesDataFrame(InferFeatureAttributesBase):
         return True
 
     def _get_first_non_null(self, feature_name: str) -> t.Any | None:
-        index = self.data[feature_name].first_valid_index()
-        if index is None:
+        # Positional lookup: a label lookup returns a Series when the index has duplicates.
+        column = self.data[feature_name]
+        non_null_positions = np.flatnonzero(column.notna().to_numpy())
+        if len(non_null_positions) == 0:
             return None
-        return self.data[feature_name][index]
+        return column.iloc[non_null_positions[0]]
 
     def _get_n_random_rows(self, samples: int = 5000, seed: int | None = None) -> pd.DataFrame:
         """
