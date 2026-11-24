@@ -6,13 +6,13 @@ from enum import Enum
 from functools import partial
 import json
 import locale
-from typing import Any, cast, TYPE_CHECKING, TypeAlias
+from typing import Any, cast, Literal, TypeAlias
 import warnings
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
-from pandas.api.extensions import ExtensionArray
+from pandas.api.extensions import ExtensionArray, ExtensionDtype
 from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
     is_timedelta64_dtype,
@@ -29,10 +29,8 @@ from howso.utilities.utilities import (
     tokenize_strings,
 )
 
-if TYPE_CHECKING:
-    from pandas._typing import Dtype
-
 __all__ = [
+    "ColumnValues",
     "FeatureSerializer",
     "FeatureType",
     "deserialize_cases",
@@ -40,7 +38,8 @@ __all__ = [
     "serialize_cases",
 ]
 
-ColumnValues: TypeAlias = Sequence[Any] | np.ndarray | pd.Series
+ColumnValues: TypeAlias = Sequence[Any] | np.ndarray | ExtensionArray | pd.Series
+"""The values of one column: a list of case values or an existing array/Series."""
 
 
 class FeatureType(Enum):
@@ -101,7 +100,7 @@ def stringify_json_feature(
 
 
 def destringify_json_feature(
-    cases: Sequence[Any] | np.ndarray | pd.Series,
+    cases: ColumnValues,
     feature_attributes: Mapping[str, Any],
     *,
     tokenizer: TokenizerProtocol | None = None,
@@ -114,8 +113,8 @@ def destringify_json_feature(
 
     Parameters
     ----------
-    cases : Sequence or numpy.ndarray or pandas.Series
-        The sequence of case values.
+    cases : ColumnValues
+        The case values of one column.
     feature_attributes : Mapping
         The feature attributes of the feature to which the provided cases belong.
     tokenizer : TokenizerProtocol, optional
@@ -291,6 +290,8 @@ class FeatureSerializer:
             The order corresponds to how the data will be mapped to columns in
             the output. Ignored for list of dict where the dict key is the column
             name.
+        index : pandas.Index, optional
+            The index of the resulting DataFrame. Defaults to a RangeIndex.
         features : Mapping, default None
             (Optional) The dictionary of feature name to feature attributes.
 
@@ -397,7 +398,7 @@ class FeatureSerializer:
         return df
 
     @classmethod
-    def format_column(  # noqa: PLR0912
+    def format_column(  # noqa: PLR0911, PLR0912
         cls,
         column: ColumnValues,
         feature: Mapping[str, Any] | None,
@@ -411,14 +412,15 @@ class FeatureSerializer:
 
         Parameters
         ----------
-        column : pandas.Series
-            The column to format.
+        column : ColumnValues
+            The column to format; a Series, or the column's values.
         feature : Mapping
             The feature attributes for the column.
         index : pandas.Index, optional
-            The index to use for the resulting Series.
+            The index of the resulting Series. Defaults to the index of `column` when it is a Series, otherwise
+            a RangeIndex. Values are matched to the index by position.
         name : Hashable, optional
-            The name to use for the resulting Series.
+            The name of the resulting Series. Defaults to the name of `column` when it is a Series.
         tokenizer : TokenizerProtocol, optional
             An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
             `detokenize` method for processing tokenizable strings. If not specified, defaults to using
@@ -427,11 +429,10 @@ class FeatureSerializer:
         Returns
         -------
         pandas.Series
-            The formatted column.
+            The formatted column. When `column` is a Series that needs no formatting, `column` itself.
         """
         feature = {} if feature is None else feature
-        typing_info = cls._get_typing_info(feature)
-        data_type = typing_info.get("data_type")
+        data_type = cls._get_typing_info(feature).get("data_type")
 
         if isinstance(column, pd.Series):
             if name is None:
@@ -441,34 +442,36 @@ class FeatureSerializer:
 
         match data_type:
             case FeatureType.NUMERIC.value:
-                values = cls.format_numeric_column(column, feature, name=name, index=index)
+                return cls._format_numeric_column(column, feature, index, name)
             case FeatureType.INTEGER.value:
-                values = cls.format_integer_column(column, feature, name=name, index=index)
+                return cls._format_integer_column(column, feature, index, name)
             case FeatureType.STRING.value:
-                values = cls.format_string_column(column, feature, name=name, index=index)
+                return cls._format_string_column(column, feature, index, name)
             case FeatureType.TOKENIZABLE_STRING.value:
-                values = cls.format_tokenizable_string_column(
-                    column, feature, name=name, index=index, tokenizer=tokenizer
-                )
+                return cls._format_tokenizable_string_column(column, feature, index, name, tokenizer=tokenizer)
             case FeatureType.DATETIME.value:
-                values = cls.format_datetime_column(column, feature, name=name, index=index)
+                return cls._format_datetime_column(column, feature, index, name)
             case FeatureType.DATE.value:
-                values = cls.format_date_column(column, feature, name=name, index=index)
+                return cls._format_date_column(column, feature, index, name)
             case FeatureType.TIME.value:
-                values = cls.format_time_column(column, feature, name=name, index=index)
+                return cls._format_time_column(column, feature, index, name)
             case FeatureType.TIMEDELTA.value:
-                values = cls.format_timedelta_column(column, feature, name=name, index=index)
+                return cls._format_timedelta_column(column, feature, index, name)
             case FeatureType.BOOLEAN.value:
-                values = cls.format_boolean_column(column, feature, name=name, index=index)
+                return cls._format_boolean_column(column, feature, index, name)
             case FeatureType.CONTAINER.value:
-                values = cls.format_container_column(column, feature, name=name, index=index)
+                return cls._format_container_column(column, feature, index, name)
             case _:
-                values = cls.format_unknown_column(column, feature, name=name, index=index)
-
-        return values
+                return cls._format_unknown_column(column, feature, index, name)
 
     @classmethod
-    def format_timedelta_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
+    def _format_timedelta_column(
+        cls,
+        values: ColumnValues,
+        feature: Mapping[str, Any],
+        index: pd.Index | None = None,
+        name: Hashable | None = None,
+    ) -> pd.Series:
         """
         Format timedelta column.
 
@@ -478,6 +481,10 @@ class FeatureSerializer:
             The column values to format.
         feature : Mapping
             The feature attributes for the column.
+        index : pandas.Index, optional
+            The index of the resulting Series.
+        name : Hashable, optional
+            The name of the resulting Series.
 
         Returns
         -------
@@ -505,7 +512,13 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_datetime_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
+    def _format_datetime_column(
+        cls,
+        values: ColumnValues,
+        feature: Mapping[str, Any],
+        index: pd.Index | None = None,
+        name: Hashable | None = None,
+    ) -> pd.Series:
         """
         Format datetime column.
 
@@ -515,6 +528,10 @@ class FeatureSerializer:
             The column values to format.
         feature : Mapping
             The feature attributes for the column.
+        index : pandas.Index, optional
+            The index of the resulting Series.
+        name : Hashable, optional
+            The name of the resulting Series.
 
         Returns
         -------
@@ -584,7 +601,13 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_date_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
+    def _format_date_column(
+        cls,
+        values: ColumnValues,
+        feature: Mapping[str, Any],
+        index: pd.Index | None = None,
+        name: Hashable | None = None,
+    ) -> pd.Series:
         """
         Format date only column.
 
@@ -594,6 +617,10 @@ class FeatureSerializer:
             The column values to format.
         feature : Mapping
             The feature attributes for the column.
+        index : pandas.Index, optional
+            The index of the resulting Series.
+        name : Hashable, optional
+            The name of the resulting Series.
 
         Returns
         -------
@@ -628,7 +655,13 @@ class FeatureSerializer:
         return column
 
     @classmethod
-    def format_time_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
+    def _format_time_column(
+        cls,
+        values: ColumnValues,
+        feature: Mapping[str, Any],
+        index: pd.Index | None = None,
+        name: Hashable | None = None,
+    ) -> pd.Series:
         """
         Format time only column.
 
@@ -638,6 +671,10 @@ class FeatureSerializer:
             The column values to format.
         feature : Mapping
             The feature attributes for the column.
+        index : pandas.Index, optional
+            The index of the resulting Series.
+        name : Hashable, optional
+            The name of the resulting Series.
 
         Returns
         -------
@@ -666,7 +703,13 @@ class FeatureSerializer:
         return column.apply(partial(seconds_to_time, tzinfo=tz))
 
     @classmethod
-    def format_boolean_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:  # noqa: ARG003
+    def _format_boolean_column(
+        cls,
+        values: ColumnValues,
+        feature: Mapping[str, Any],
+        index: pd.Index | None = None,
+        name: Hashable | None = None,
+    ) -> pd.Series:
         """
         Format boolean column.
 
@@ -676,6 +719,10 @@ class FeatureSerializer:
             The column values to format.
         feature : Mapping
             The feature attributes for the column.
+        index : pandas.Index, optional
+            The index of the resulting Series.
+        name : Hashable, optional
+            The name of the resulting Series.
 
         Returns
         -------
@@ -693,11 +740,20 @@ class FeatureSerializer:
 
             return column.apply(_apply_bool)
         except Exception:  # noqa: BLE001
-            warnings.warn(f'Unable to parse column "{column.name}" as boolean. Column will retain current dtype.')
+            warnings.warn(
+                f'Unable to parse column "{name}" as boolean. Column will retain current dtype.',
+                stacklevel=3,
+            )
             return column
 
     @classmethod
-    def format_integer_column(cls, column: ColumnValues, feature: Mapping[str, Any]) -> pd.Series:
+    def _format_integer_column(
+        cls,
+        values: ColumnValues,
+        feature: Mapping[str, Any],
+        index: pd.Index | None = None,
+        name: Hashable | None = None,
+    ) -> pd.Series:
         """
         Format integer column.
 
@@ -707,6 +763,10 @@ class FeatureSerializer:
             The column values to format.
         feature : Mapping
             The feature attributes for the column.
+        index : pandas.Index, optional
+            The index of the resulting Series.
+        name : Hashable, optional
+            The name of the resulting Series.
 
         Returns
         -------
@@ -737,7 +797,8 @@ class FeatureSerializer:
             and (getattr(feature, "unique", False) or getattr(feature, "subtype", None) == "int-id")
         ):
             warnings.warn(
-                f'Unable to restore column "{column.name}" as {type_name}. Column will retain current dtype.'
+                f'Unable to restore column "{name}" as {type_name}. Column will retain current dtype.',
+                stacklevel=3,
             )
             return column
 
@@ -749,15 +810,17 @@ class FeatureSerializer:
             # pandas series when given one, but the type hint only shows ndarray)
             return cast(pd.Series, np.floor(pd.to_numeric(column)).astype(cast(np.dtype, type_name)))
         except Exception:  # noqa: BLE001
-            warnings.warn(f'Unable to parse column "{column.name}" as {type_name}. Column will retain current dtype.')
+            warnings.warn(
+                f'Unable to parse column "{name}" as {type_name}. Column will retain current dtype.',
+                stacklevel=3,
+            )
             return column
 
     @classmethod
-    def format_numeric_column(
+    def _format_numeric_column(
         cls,
         values: ColumnValues,
         feature: Mapping[str, Any],
-        *,
         index: pd.Index | None = None,
         name: Hashable | None = None,
     ) -> pd.Series:
@@ -771,9 +834,9 @@ class FeatureSerializer:
         feature : Mapping
             The feature attributes for the column.
         index : pandas.Index, optional
-            The index to use for the resulting Series.
+            The index of the resulting Series.
         name : Hashable, optional
-            The name to use for the resulting Series.
+            The name of the resulting Series.
 
         Returns
         -------
@@ -787,8 +850,8 @@ class FeatureSerializer:
             if typing_info.get("format") == "decimal":
                 type_name = "Decimal"
                 # Note: We cast to string first here in attempt to prevent floating point errors.
-                values = [decimal.Decimal(str(x)) if x is not None else None for x in values]
-                return cls._to_series(name, values, index)
+                decimals = [decimal.Decimal(str(x)) if x is not None else None for x in values]
+                return cls._to_series(decimals, index, name)
 
             if feature.get("subtype") == "int-id" or feature.get("unique"):
                 # unique or int-id features are output as 64bit ints, leave as-is ignore original type size
@@ -797,23 +860,19 @@ class FeatureSerializer:
                 size = typing_info.get("size")
                 type_name = f"float{size * 8}" if size in {1, 2, 4, 8, 16} else "float"
 
-            if isinstance(values, pd.Series):
-                values = values.astype(np.dtype(type_name))
-                return cls._to_series(name, values, index, copy=False)
-
-            return cls._to_series(name, values, index)
+            return cls._to_series(values, index, name, dtype=np.dtype(type_name))
         except Exception:  # noqa: BLE001
             warnings.warn(
-                f'Unable to parse column "{name}" as {type_name}. Column will retain current dtype.', stacklevel=3
+                f'Unable to parse column "{name}" as {type_name}. Column will retain current dtype.',
+                stacklevel=3,
             )
-            return cls.format_unknown_column(values, feature, name=name, index=index)
+            return cls._to_series(values, index, name)
 
     @classmethod
-    def format_string_column(
+    def _format_string_column(
         cls,
         values: ColumnValues,
         feature: Mapping[str, Any],  # noqa: ARG003
-        *,
         index: pd.Index | None = None,
         name: Hashable | None = None,
     ) -> pd.Series:
@@ -827,25 +886,25 @@ class FeatureSerializer:
         feature : Mapping
             The feature attributes for the column.
         index : pandas.Index, optional
-            The index to use for the resulting Series.
+            The index of the resulting Series.
         name : Hashable, optional
-            The name to use for the resulting Series.
+            The name of the resulting Series.
 
         Returns
         -------
         pandas.Series
             The formatted column.
         """
-        return cls._to_series(name, values, index)
+        return cls._to_series(values, index, name)
 
     @classmethod
-    def format_tokenizable_string_column(
+    def _format_tokenizable_string_column(
         cls,
         values: ColumnValues,
         feature: Mapping[str, Any],
-        *,
         index: pd.Index | None = None,
         name: Hashable | None = None,
+        *,
         tokenizer: TokenizerProtocol | None = None,
     ) -> pd.Series:
         """
@@ -860,9 +919,9 @@ class FeatureSerializer:
         feature : Mapping
             The feature attributes for the column.
         index : pandas.Index, optional
-            The index to use for the resulting Series.
+            The index of the resulting Series.
         name : Hashable, optional
-            The name to use for the resulting Series.
+            The name of the resulting Series.
         tokenizer : TokenizerProtocol, default None
             An object that satisfies :class:`howso.client.protocols.TokenizerProtocol`. Provides a tokenizer and
             `detokenize` method for processing tokenizable strings. If not specified, defaults to using
@@ -875,14 +934,43 @@ class FeatureSerializer:
         """
         tokenizer = tokenizer or HowsoTokenizer()
         values = destringify_json_feature(values, feature, tokenizer=tokenizer)
-        return cls._to_series(name, values, index)
+        return cls._to_series(values, index, name)
 
     @classmethod
-    def format_unknown_column(
+    def _format_container_column(
+        cls,
+        values: ColumnValues,
+        feature: Mapping[str, Any],
+        index: pd.Index | None = None,
+        name: Hashable | None = None,
+    ) -> pd.Series:
+        """
+        Format a container column.
+
+        Parameters
+        ----------
+        values : ColumnValues
+            The column values to format.
+        feature : Mapping
+            The feature attributes for the column.
+        index : pandas.Index, optional
+            The index of the resulting Series.
+        name : Hashable, optional
+            The name of the resulting Series.
+
+        Returns
+        -------
+        pandas.Series
+            The formatted column.
+        """
+        values = destringify_json_feature(values, feature)
+        return cls._to_series(values, index, name, dtype="object")
+
+    @classmethod
+    def _format_unknown_column(
         cls,
         values: ColumnValues,
         feature: Mapping[str, Any],  # noqa: ARG003
-        *,
         index: pd.Index | None = None,
         name: Hashable | None = None,
     ) -> pd.Series:
@@ -896,66 +984,66 @@ class FeatureSerializer:
         feature : Mapping
             The feature attributes for the column.
         index : pandas.Index, optional
-            The index to use for the resulting Series.
+            The index of the resulting Series.
         name : Hashable, optional
-            The name to use for the resulting Series.
+            The name of the resulting Series.
 
         Returns
         -------
         pandas.Series
             The formatted column.
         """
-        return cls._to_series(name, values, index)
+        return cls._to_series(values, index, name)
 
-    @classmethod
-    def format_container_column(
-        cls,
+    @staticmethod
+    def _to_series(
         values: ColumnValues,
-        feature: Mapping[str, Any],
-        *,
         index: pd.Index | None = None,
         name: Hashable | None = None,
+        *,
+        copy: bool = False,
+        dtype: np.dtype | ExtensionDtype | Literal["object"] | None = None,
     ) -> pd.Series:
         """
-        Format a container column (a Python Mapping/Sequence).
+        Make a Series of `values`, with `index` and `name` applied by position (never aligned).
+
+        A Series is only changed through its own methods, so it is returned as is when nothing differs, and is
+        never copied unless its dtype changes. Arrays are used without copying by default, so formatters should only
+        pass arrays they created or specify `copy=True`. A list is converted in one pass, straight to `dtype`
+        when specified.
 
         Parameters
         ----------
         values : ColumnValues
-            The column values to format.
-        feature : Mapping
-            The feature attributes for the column.
+            The values of the Series.
         index : pandas.Index, optional
-            The index to use for the resulting Series.
+            The index of the resulting Series.
         name : Hashable, optional
-            The name to use for the resulting Series.
+            The name of the resulting Series.
+        copy : bool,  default False
+            If values should be copied when constructing the Series object.
+            (Only applies to numpy or extension arrays)
+        dtype : numpy.dtype or ExtensionDtype or "object", optional
+            The dtype to convert to. Defaults to the dtype of `values` when it is an array, otherwise pandas'
+            default inference.
 
         Returns
         -------
         pandas.Series
-            The formatted column.
+            The Series.
         """
-        values = destringify_json_feature(values, feature)
-        return cls._to_series(name, values, index)
-
-    @staticmethod
-    def _to_series(
-        name: Hashable | None,
-        values: ColumnValues | ExtensionArray,
-        index: pd.Index | None,
-        *,
-        copy: bool = True,
-        dtype: Dtype | None = None,
-    ) -> pd.Series:
-        if isinstance(values, (pd.Series, pd.Index)):
-            if name is None:
-                name = values.name
-            # use data directly when a series/index to prevent re-indexing
-            values = values.array
+        if isinstance(values, pd.Series):
+            if dtype is not None and values.dtype != dtype:
+                values = values.astype(dtype)
+            if index is not None and values.index is not index:
+                values = values.set_axis(index)
+            if name is not None and values.name != name:
+                values.name = name
+            return values
         if dtype is None and isinstance(values, (np.ndarray, ExtensionArray)):
-            # Assign dtype so pandas does not attempt to re-infer it
+            # Keep the dtype, otherwise pandas 3 re-infers object arrays of strings as `str` (a copy)
             dtype = values.dtype
-        return pd.Series(values, name=name, index=index, dtype=dtype, copy=copy)
+        return pd.Series(values, index=index, name=name, dtype=dtype, copy=copy)
 
     @staticmethod
     def _get_typing_info(feature: Mapping[str, Any] | None) -> dict[str, Any]:
