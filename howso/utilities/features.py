@@ -68,88 +68,6 @@ class FeatureType(Enum):
         return str(self.value)
 
 
-def stringify_json_feature(
-    cases: list[list[Any]],
-    features: Iterable[str],
-    feature_attributes: Mapping[str, Any],
-) -> None:
-    """
-    Ensure that any JSON features have their cases stringified.
-
-    Null values are left as-is so that they are sent to the engine as nulls rather than as the
-    JSON string "null".
-
-    Parameters
-    ----------
-    cases : list of list of Any
-        A 2d list of case values corresponding to the provided feature names.
-    features : list of str
-        The list of feature names, corresponding to the columns in the 2d case list.
-    feature_attributes : Mapping
-        The feature attributes of the provided features.
-    """
-    for idx, feature_name in enumerate(features):
-        if feature_attributes.get(feature_name, {}).get("data_type") == "json":
-            orig_type_info = feature_attributes[feature_name].get("original_type", {})
-            # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
-            if orig_type_info.get("data_type", {}) in ["container", "tokenizable_string"]:
-                coerce_set = orig_type_info.get("coercion") == "set"
-                for case_group in cases:
-                    value = case_group[idx]
-                    if is_null_value(value):
-                        case_group[idx] = None
-                        continue
-                    if coerce_set:
-                        # If an original type indicates a set, convert to list for serialization
-                        value = list(value)
-                    case_group[idx] = json.dumps(value)
-
-
-def destringify_json_feature(
-    cases: ColumnValues,
-    feature_attributes: Mapping[str, Any],
-    *,
-    tokenizer: TokenizerProtocol | None = None,
-) -> list[Any]:
-    """
-    Ensure that any JSON features have their cases de-stringified.
-
-    Null values are returned as None. A null may arrive either directly as a null value or JSON
-    encoded as the literal ``null`` (which `json.loads` decodes to None).
-
-    Parameters
-    ----------
-    cases : ColumnValues
-        The case values of one column.
-    feature_attributes : Mapping
-        The feature attributes of the feature to which the provided cases belong.
-    tokenizer : TokenizerProtocol, optional
-        A tokenizer to allow detokenizing strings.
-        Only applies to features whose original data type is "tokenizable_string".
-    """
-    destringified_cases = []
-    typing_info = feature_attributes.get("original_type", {}) or {}
-    is_set = typing_info.get("coercion") == "set"
-    is_tokenized = typing_info.get("data_type") == "tokenizable_string"
-
-    for case_to_destringify in cases:
-        if is_null_value(case_to_destringify):
-            destringified_cases.append(None)
-            continue
-        if isinstance(case_to_destringify, (str, bytes, bytearray)):
-            # The JSON literal ``null`` decodes to None, which cannot be coerced any further
-            formatted_case = json.loads(case_to_destringify)
-        else:
-            formatted_case = case_to_destringify
-        if formatted_case is not None:
-            if is_tokenized and tokenizer is not None:
-                formatted_case = tokenizer.detokenize(formatted_case)
-            elif is_set:
-                formatted_case = set(formatted_case)
-        destringified_cases.append(formatted_case)
-    return destringified_cases
-
-
 class FeatureSerializer:
     """Adapter for serialization and deserialization of feature data."""
 
@@ -265,9 +183,46 @@ class FeatureSerializer:
         tokenize_strings(result, columns, features, tokenizer=tokenizer or HowsoTokenizer())
 
         # Stringify any raw JSONs
-        stringify_json_feature(result, columns, features)
+        cls._stringify_json(result, columns, features)
 
         return result
+
+    @staticmethod
+    def _stringify_json(
+        cases: list[list[Any]],
+        columns: Sequence[str],
+        features: Mapping[str, Any],
+    ) -> None:
+        """
+        Ensure that any JSON features have their cases stringified.
+
+        Null values are left as-is so that they are sent to the engine as nulls rather than as the
+        JSON string "null".
+
+        Parameters
+        ----------
+        cases : list of list of Any
+            A 2d list of case values corresponding to the provided feature names.
+        columns : Sequence of str
+            The list of feature names, corresponding to the columns in the 2d case list.
+        features : Mapping
+            The dictionary of feature name to feature attributes.
+        """
+        for idx, feature_name in enumerate(columns):
+            if features.get(feature_name, {}).get("data_type") == "json":
+                orig_type_info = features[feature_name].get("original_type", {})
+                # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
+                if orig_type_info.get("data_type", {}) in ["container", "tokenizable_string"]:
+                    coerce_set = orig_type_info.get("coercion") == "set"
+                    for row in cases:
+                        value = row[idx]
+                        if is_null_value(value):
+                            row[idx] = None
+                            continue
+                        if coerce_set:
+                            # If an original type indicates a set, convert to list for serialization
+                            value = list(value)
+                        row[idx] = json.dumps(value)
 
     @classmethod
     def deserialize(
@@ -764,7 +719,7 @@ class FeatureSerializer:
                 return bool(value)
             if isinstance(value, str):
                 return value.strip().lower() in _TRUE
-            if pd.api.types.is_scalar(value) and pd.isna(value):
+            if is_null_value(value):
                 return 2
             return bool(value)
 
@@ -959,7 +914,7 @@ class FeatureSerializer:
             The formatted column.
         """
         tokenizer = tokenizer or HowsoTokenizer()
-        values = destringify_json_feature(values, feature, tokenizer=tokenizer)
+        values = cls._destringify_json(values, feature, tokenizer=tokenizer)
         return cls._to_series(values, index, name)
 
     @classmethod
@@ -989,7 +944,7 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        values = destringify_json_feature(values, feature)
+        values = cls._destringify_json(values, feature)
         return cls._to_series(values, index, name, dtype="object")
 
     @classmethod
@@ -1020,6 +975,51 @@ class FeatureSerializer:
             The formatted column.
         """
         return cls._to_series(values, index, name)
+
+    @staticmethod
+    def _destringify_json(
+        values: ColumnValues,
+        features: Mapping[str, Any],
+        *,
+        tokenizer: TokenizerProtocol | None = None,
+    ) -> np.ndarray:
+        """
+        De-stringify JSON feature values.
+
+        Null values are returned as None. A null may arrive either directly as a null value or JSON
+        encoded as the literal ``null`` (which `json.loads` decodes to None).
+
+        Parameters
+        ----------
+        values : ColumnValues
+            The column values to destringify.
+        features : Mapping
+            The feature attributes for the column.
+        tokenizer : TokenizerProtocol, optional
+            A tokenizer to allow detokenizing strings.
+            Only applies to features whose original data type is "tokenizable_string".
+        """
+        typing_info = features.get("original_type", {}) or {}
+        is_set = typing_info.get("coercion") == "set"
+        is_tokenized = typing_info.get("data_type") == "tokenizable_string"
+
+        def _process(raw_value: Any) -> Any:
+            if isinstance(raw_value, (str, bytes, bytearray)):
+                # The JSON literal ``null`` decodes to None, which cannot be coerced any further
+                value = json.loads(raw_value)
+            elif is_null_value(raw_value):
+                return None
+            else:
+                value = raw_value
+
+            if value is not None:
+                if is_tokenized and tokenizer is not None:
+                    value = tokenizer.detokenize(value)
+                elif is_set:
+                    value = set(value)
+            return value
+
+        return np.fromiter(map(_process, values), dtype=object, count=len(values))
 
     @staticmethod
     def _to_series(
