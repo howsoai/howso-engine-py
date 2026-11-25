@@ -41,7 +41,7 @@ __all__ = [
     "serialize_cases",
 ]
 
-ColumnValues: TypeAlias = Sequence[Any] | np.ndarray | ExtensionArray | pd.Series
+ColumnValues: TypeAlias = list[Any] | tuple[Any] | np.ndarray | ExtensionArray | pd.Series
 """The values of one column: a list of case values or an existing array/Series."""
 
 _TRUE = frozenset({"true", "y", "yes", "on", ".true"})
@@ -470,12 +470,22 @@ class FeatureSerializer:
                     return cls._format_container_column(column, feature, index, name)
                 case _:
                     return cls._format_unknown_column(column, feature, index, name)
+        except locale.Error:
+            feature_locale = feature.get("locale")
+            warnings.warn(
+                f'Unable to format {data_type} column "{name}", the required '
+                f'locale "{feature_locale}" does not appear to be available on this system. '
+                "Column will retain inferred dtype. Note: This feature may not work "
+                "properly until this locale is installed.",
+                stacklevel=2,
+            )
         except Exception:  # noqa: BLE001
             warnings.warn(
                 f'Unable to format {data_type} column "{name}". Column will retain inferred dtype.',
                 stacklevel=2,
             )
-            return cls._to_series(column, index=index, name=name)
+
+        return cls._to_series(column, index=index, name=name)
 
     @classmethod
     def _format_timedelta_column(
@@ -504,6 +514,10 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
+        if isinstance(values, pd.Series) and pd.api.types.is_timedelta64_dtype(values.dtype):
+            # Nothing to format
+            return values
+
         typing_info = cls._get_typing_info(feature)
         try:
             unit = typing_info["unit"]
@@ -511,18 +525,13 @@ class FeatureSerializer:
                 raise ValueError("invalid unit type")  # noqa: TRY301
         except (TypeError, KeyError, ValueError):
             warnings.warn(
-                f'Unknown timedelta unit for column "{column.name}", column will not be translated to a timedelta64.'
+                f'Unknown timedelta unit for feature "{name}", column will not be translated to a timedelta64.',
+                stacklevel=3,
             )
-            return column
+            return cls._to_series(values, index=index, name=name)
 
-        try:
-            return pd.to_timedelta(column, unit=unit)
-        except Exception:  # noqa: BLE001
-            warnings.warn(
-                f'Timedelta column "{column.name}" failed to be parsed as '
-                "timedelta64 values, column will retain current dtype."
-            )
-        return column
+        timedeltas = pd.to_timedelta(values, unit=unit)
+        return cls._to_series(timedeltas, index=index, name=name)
 
     @classmethod
     def _format_datetime_column(
@@ -565,9 +574,9 @@ class FeatureSerializer:
                 tz = ZoneInfo(tz)
             except KeyError:
                 warnings.warn(
-                    f'Unknown timezone "{tz}" for feature "{column.name}", '
-                    "datetime column may not contain original timezone "
-                    "information."
+                    f'Unknown timezone "{tz}" for feature "{name}", '
+                    "datetime column may not contain original timezone information.",
+                    stacklevel=3,
                 )
                 tz = None
 
@@ -583,11 +592,10 @@ class FeatureSerializer:
                     # timezone
                     col = pd.to_datetime(column, format=target_format, utc=True)
                     return col.dt.tz_convert(tz)
-                else:
-                    # Since format string does not include timezone
-                    # we just have to localize the datetime object
-                    col = pd.to_datetime(column, format=target_format)
-                    return col.dt.tz_localize(tz)
+                # Since format string does not include timezone
+                # we just have to localize the datetime object
+                col = pd.to_datetime(column, format=target_format)
+                return col.dt.tz_localize(tz)
 
             return pd.to_datetime(column, format=target_format)
 
@@ -708,7 +716,7 @@ class FeatureSerializer:
                     tz = ZoneInfo(tz_name)
                 except KeyError:
                     warnings.warn(
-                        f'Unknown timezone defined for column "{name}", column will not be timezone aware.',
+                        f'Unknown timezone defined for feature "{name}", time column will not be timezone aware.',
                         stacklevel=3,
                     )
         except (TypeError, KeyError):
@@ -1015,7 +1023,7 @@ class FeatureSerializer:
 
     @staticmethod
     def _to_series(
-        values: ColumnValues,
+        values: ColumnValues | pd.Index,
         index: pd.Index | None = None,
         name: Hashable | None = None,
         *,
@@ -1032,7 +1040,7 @@ class FeatureSerializer:
 
         Parameters
         ----------
-        values : ColumnValues
+        values : ColumnValues or pandas.Index
             The values of the Series.
         index : pandas.Index, optional
             The index of the resulting Series.
@@ -1061,6 +1069,7 @@ class FeatureSerializer:
             return values
         if dtype is None and isinstance(values, (np.ndarray, ExtensionArray)):
             # Keep the dtype, otherwise pandas 3 re-infers object arrays of strings as `str` (a copy)
+            # If the input is pandas.Index, leave `dtype` None
             dtype = values.dtype
         return pd.Series(values, index=index, name=name, dtype=dtype, copy=copy)
 
