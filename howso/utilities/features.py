@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Hashable, Iterable, Mapping, Sequence
+from contextlib import nullcontext
 import decimal
 from enum import Enum
 from functools import partial
@@ -521,6 +522,9 @@ class FeatureSerializer:
         format_includes_timezone = False
         if date_time_format and DATETIME_TIMEZONE_PATTERN.findall(date_time_format):
             format_includes_timezone = True
+        target_format = None
+        if date_time_format is not None:
+            target_format = to_pandas_datetime_format(date_time_format)
 
         # Load timezone information if provided
         tz = typing_info.get("timezone")
@@ -535,46 +539,24 @@ class FeatureSerializer:
                 )
                 tz = None
 
-        def _to_datetime() -> pd.Series:
-            # Format column to datetime
-            target_format = None
-            if date_time_format is not None:
-                target_format = to_pandas_datetime_format(date_time_format)
+        # Format the column as datetime64
+        with LocaleOverride(date_locale, category=locale.LC_TIME) if date_locale else nullcontext():
+            parse_as_utc = tz is not None and format_includes_timezone
+            datetimes = pd.to_datetime(values, format=target_format, utc=parse_as_utc)
+
             if tz is not None:
-                if format_includes_timezone:
-                    # When format string includes timezone we want to load
-                    # the datetime as UTC, then we can convert it to the named
-                    # timezone
-                    col = pd.to_datetime(column, format=target_format, utc=True)
-                    return col.dt.tz_convert(tz)
-                # Since format string does not include timezone
-                # we just have to localize the datetime object
-                col = pd.to_datetime(column, format=target_format)
-                return col.dt.tz_localize(tz)
+                dt = datetimes.dt if isinstance(datetimes, pd.Series) else datetimes
 
-            return pd.to_datetime(column, format=target_format)
+                if parse_as_utc:
+                    # When format string includes timezone we load the datetime as UTC,
+                    # then we convert it to the named timezone
+                    dt.tz_convert(tz)
+                else:
+                    # Since format string does not include timezone
+                    # we just have to localize the datetime object
+                    dt.tz_localize(tz)
 
-        try:
-            if date_locale:
-                with LocaleOverride(date_locale, category=locale.LC_TIME):
-                    return _to_datetime()
-            else:
-                return _to_datetime()
-        except locale.Error:
-            warnings.warn(
-                f'Unable to parse column "{column.name}" as datetime64, the '
-                f'locale "{date_locale}" of the datetime does not appear to be '
-                "available on this system. Column will retain current dtype. "
-                "Note: This feature may not work properly until this locale "
-                "is installed."
-            )
-        except Exception:  # noqa: BLE001
-            warnings.warn(
-                f'Unable to parse column "{column.name}" as '
-                f'datetime64 using format "{date_time_format}". '
-                "Column will retain current dtype."
-            )
-        return column
+        return cls._to_series(datetimes, index=index, name=name)
 
     @classmethod
     def _format_date_column(
@@ -608,27 +590,10 @@ class FeatureSerializer:
         target_format = None
         if date_time_format is not None:
             target_format = to_pandas_datetime_format(date_time_format)
-        try:
-            if date_locale:
-                with LocaleOverride(date_locale, category=locale.LC_TIME):
-                    return pd.to_datetime(column, format=target_format)
-            else:
-                return pd.to_datetime(column, format=target_format)
-        except locale.Error:
-            warnings.warn(
-                f'Unable to parse column "{column.name}" as datetime64, the '
-                f'locale "{date_locale}" of the date does not appear to be '
-                "available on this system. Column will retain current dtype. "
-                "Note: This feature may not work properly until this locale "
-                "is installed."
-            )
-        except Exception:  # noqa: BLE001
-            warnings.warn(
-                f'Unable to parse column "{column.name}" as '
-                f"datetime64 using format {date_time_format}. "
-                "Column will retain current dtype."
-            )
-        return column
+
+        with LocaleOverride(date_locale, category=locale.LC_TIME) if date_locale else nullcontext():
+            dates = pd.to_datetime(values, format=target_format)
+        return cls._to_series(dates, index=index, name=name)
 
     @classmethod
     def _format_time_column(
@@ -659,7 +624,7 @@ class FeatureSerializer:
         """
         typing_info = cls._get_typing_info(feature)
         date_time_format = feature.get("date_time_format")
-        if date_time_format:
+        if date_time_format is not None:
             return cls._format_datetime_column(values, feature, index, name)
 
         # Time feature does not use a date_time_format, treat as seconds
@@ -837,7 +802,7 @@ class FeatureSerializer:
         if typing_info.get("format") == "decimal":
             # Note: We cast to string first here in attempt to prevent floating point errors.
             decimals = [decimal.Decimal(str(x)) if x is not None else None for x in values]
-            return cls._to_series(decimals, index, name)
+            return cls._to_series(decimals, index=index, name=name)
 
         if feature.get("subtype") == "int-id" or feature.get("unique"):
             # unique or int-id features are output as 64bit ints, leave as-is ignore original type size
@@ -846,7 +811,7 @@ class FeatureSerializer:
             size = typing_info.get("size")
             dtype = f"float{size * 8}" if size in {1, 2, 4, 8, 16} else "float"
 
-        return cls._to_series(values, index, name, dtype=np.dtype(dtype))
+        return cls._to_series(values, index=index, name=name, dtype=np.dtype(dtype))
 
 
     @classmethod
@@ -876,7 +841,7 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        return cls._to_series(values, index, name)
+        return cls._to_series(values, index=index, name=name)
 
     @classmethod
     def _format_tokenizable_string_column(
@@ -915,7 +880,7 @@ class FeatureSerializer:
         """
         tokenizer = tokenizer or HowsoTokenizer()
         values = cls._destringify_json(values, feature, tokenizer=tokenizer)
-        return cls._to_series(values, index, name)
+        return cls._to_series(values, index=index, name=name)
 
     @classmethod
     def _format_container_column(
@@ -945,7 +910,7 @@ class FeatureSerializer:
             The formatted column.
         """
         values = cls._destringify_json(values, feature)
-        return cls._to_series(values, index, name, dtype="object")
+        return cls._to_series(values, index=index, name=name, dtype="object")
 
     @classmethod
     def _format_unknown_column(
@@ -974,7 +939,7 @@ class FeatureSerializer:
         pandas.Series
             The formatted column.
         """
-        return cls._to_series(values, index, name)
+        return cls._to_series(values, index=index, name=name)
 
     @staticmethod
     def _destringify_json(
