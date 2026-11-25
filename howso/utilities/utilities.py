@@ -4,7 +4,6 @@ from collections.abc import (
     Callable,
     Collection,
     Generator,
-    Hashable,
     Iterable,
     Mapping,
     Sequence,
@@ -19,7 +18,6 @@ from concurrent.futures import (
 )
 import datetime as dt
 import inspect
-import json
 import locale as python_locale
 from math import (
     ceil,
@@ -188,7 +186,7 @@ def seconds_to_time(seconds: int | float | None, *, tzinfo: dt.tzinfo | None = N
     datetime.time or None
         The time object.
     """
-    if pd.isnull(seconds):
+    if pd.isna(seconds):
         return None
     time_value = (dt.datetime.min + dt.timedelta(seconds=seconds)).time()
     if tzinfo:
@@ -789,70 +787,6 @@ def is_null_value(value: Any) -> bool:
         True if the value is a null scalar (None, `np.nan`, `pd.NA`, ...).
     """
     return pd.api.types.is_scalar(value) and bool(pd.isna(value))
-
-
-def stringify_json(cases: list[list[Any]], features: Iterable[str], feature_attributes: Mapping) -> None:
-    """
-    Ensure that any JSON features have their cases stringified.
-
-    Null values are left as-is so that they are sent to the engine as nulls rather than as the
-    JSON string "null".
-
-    Parameters
-    ----------
-    cases : list of list of Any
-        A 2d list of case values corresponding to the provided feature names.
-    features : list of str
-        The list of feature names.
-    feature_attributes : Mapping
-        The feature attributes of the provided features.
-    """
-    for idx, feature_name in enumerate(features):
-        if feature_attributes.get(feature_name, {}).get("data_type") == "json":
-            orig_type_info = feature_attributes[feature_name].get("original_type", {})
-            # Applicable if original type is an object (Python list/dict) or string, tokenized into a list
-            if orig_type_info.get("data_type", {}) in ["container", "tokenizable_string"]:
-                coerce_set = orig_type_info.get("coercion") == "set"
-                for case_group in cases:
-                    value = case_group[idx]
-                    if is_null_value(value):
-                        case_group[idx] = None
-                        continue
-                    if coerce_set:
-                        # If an original type indicates a set, convert to list for serialization
-                        value = list(value)
-                    case_group[idx] = json.dumps(value)
-
-
-def destringify_json(cases: pd.Series, feature_attributes: Mapping) -> pd.Series:
-    """
-    Ensure that any JSON features have their cases destringified.
-
-    Null values are returned as None. A null may arrive either directly as a null value or JSON
-    encoded as the literal ``null`` (which `json.loads` decodes to None).
-
-    Parameters
-    ----------
-    cases : pd.Series
-        A Pandas Series of case values.
-    feature_attributes : Mapping
-        The feature attributes of the feature to which the provided cases belong.
-    """
-    destringified_cases = []
-    typing_info = feature_attributes.get("original_type", {}) or {}
-    for case_to_destringify in cases:
-        if is_null_value(case_to_destringify):
-            destringified_cases.append(None)
-            continue
-        if isinstance(case_to_destringify, (str, bytes, bytearray)):
-            # The JSON literal ``null`` decodes to None, which cannot be coerced any further
-            formatted_case = json.loads(case_to_destringify)
-        else:
-            formatted_case = case_to_destringify
-        if formatted_case is not None and typing_info.get("coercion") == "set":
-            formatted_case = set(formatted_case)
-        destringified_cases.append(formatted_case)
-    return pd.Series(destringified_cases)
 
 
 def tokenize_strings(

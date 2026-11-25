@@ -258,48 +258,6 @@ def preprocess_feature_attributes(features: Mapping | None) -> dict | None:
     return feature_attributes
 
 
-def format_react_response(response: dict, single_action: bool = False):
-    """
-    Reformat the react response into a dict of action and details.
-
-    Parameters
-    ----------
-    response : dict
-        The raw react response object.
-    single_action : bool, default False
-        If response should be a single action value. (i.e. React into series)
-
-    Returns
-    -------
-    dict
-        A dict of two keys, action and details.
-    """
-    # Import locally to prevent a circular import
-    from howso.utilities import replace_doublemax_with_infinity
-    response = replace_doublemax_with_infinity(response)
-
-    action_features = response['action_features'] or list()
-    action_values = response['action_values']
-
-    # Convert to format of a list of dicts of feature->value
-    action = dict() if single_action else list()
-    if (
-        action_values is not None
-        and len(action_values) > 0
-        and len(action_features) > 0
-    ):
-        if single_action:
-            action = dict(zip(action_features, action_values))
-        else:
-            action = [dict(zip(action_features, values)) for
-                      values in action_values]
-
-    # remove action_values from details to prevent output of dupe data
-    del response['action_values']
-
-    return {'action': action, 'details': response}
-
-
 def accumulate_react_result(accumulated_result: dict[str, Any], result: Mapping[str, Any]) -> dict[str, Any]:
     """
     Accumulate the results from multiple reacts responses.
