@@ -186,7 +186,7 @@ def seconds_to_time(seconds: int | float | None, *, tzinfo: dt.tzinfo | None = N
     datetime.time or None
         The time object.
     """
-    if pd.isnull(seconds):
+    if pd.isna(seconds):
         return None
     time_value = (dt.datetime.min + dt.timedelta(seconds=seconds)).time()
     if tzinfo:

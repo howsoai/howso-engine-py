@@ -695,9 +695,9 @@ class FeatureSerializer:
             The formatted column.
         """
         typing_info = cls._get_typing_info(feature)
-        date_time_format = feature.get("date_time_format") or None
+        date_time_format = feature.get("date_time_format")
         if date_time_format:
-            return cls.format_datetime_column(column, feature)
+            return cls._format_datetime_column(values, feature, index, name)
 
         # Time feature does not use a date_time_format, treat as seconds
         tz = None
@@ -708,12 +708,14 @@ class FeatureSerializer:
                     tz = ZoneInfo(tz_name)
                 except KeyError:
                     warnings.warn(
-                        f'Unknown timezone defined for column "{column.name}", column will not be timezone aware.'
+                        f'Unknown timezone defined for column "{name}", column will not be timezone aware.',
+                        stacklevel=3,
                     )
         except (TypeError, KeyError):
             pass
 
-        return column.apply(partial(seconds_to_time, tzinfo=tz))
+        array = np.fromiter(map(partial(seconds_to_time, tzinfo=tz), values), dtype=object, count=len(values))
+        return cls._to_series(array, index=index, name=name)
 
     @classmethod
     def _format_boolean_column(
