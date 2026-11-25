@@ -206,7 +206,11 @@ def _infer_delta_min_max_from_chunk(  # noqa: C901
     time_feature_deltas = None
 
     for f_name in feature_names:
-        if features[f_name].get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}:
+        # The time feature's deltas are computed even when its values are strings of digits.
+        if (
+            f_name != time_feature_name
+            and features[f_name].get("data_type") in {"json", "yaml", "amalgam", "string", "string_mixable"}
+        ):
             continue
 
         if features[f_name].get("type") != "continuous" or "time_series" not in features[f_name]:
@@ -866,10 +870,11 @@ class InferFeatureAttributesTimeSeries(ABC):
             if f_name not in time_invariant_features:
                 if time_series_types_override and f_name in time_series_types_override:
                     features[f_name]["time_series"] = {"type": time_series_types_override[f_name]}
-                # Non-continuous or semi-structure types get just an empty "time_series" dict.
-                elif (
-                    features[f_name]["type"] != "continuous" or
-                    features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string", "string_mixable"}
+                # Non-continuous or semi-structure types get just an empty "time_series" dict. The time
+                # feature is continuous, and its deltas are computed even when its values are strings of digits.
+                elif features[f_name]["type"] != "continuous" or (
+                    f_name != self.time_feature_name
+                    and features[f_name]["data_type"] in {"json", "yaml", "amalgam", "string", "string_mixable"}
                 ):
                     features[f_name]["time_series"] = {}
                 # The remaining get the default "type"
@@ -1257,7 +1262,10 @@ class IFATimeSeriesADC(InferFeatureAttributesTimeSeries):
             for f_name, f_attrs in features.items()
             if f_attrs.get("type") == "continuous"
             and "time_series" in f_attrs
-            and f_attrs.get("data_type") not in {"json", "yaml", "amalgam", "string", "string_mixable"}
+            and (
+                f_name == self.time_feature_name
+                or f_attrs.get("data_type") not in {"json", "yaml", "amalgam", "string", "string_mixable"}
+            )
         ]
 
         if not continuous_ts_features:

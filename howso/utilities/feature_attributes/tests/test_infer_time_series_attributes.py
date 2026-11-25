@@ -401,6 +401,23 @@ def test_semi_structured_features(data_type: str, value: list[str]):
     assert features["inventory"]["time_series"]["num_lags"] == 3
 
 
+def test_digit_string_time_feature():
+    """Test that a time feature of digit strings gets deltas, unlike other continuous strings."""
+    df = pd.DataFrame({
+        "id": [1, 1, 1, 2, 2, 2],
+        "date": ["20100131", "20100228", "20100331"] * 2,
+        "name": ["alice", "alicia", "alice", "bob", "rob", "bob"],
+    })
+    features = infer_feature_attributes(df, time_feature_name="date", id_feature_name="id",
+                                        types={"name": "continuous"}, enable_suggestions=False)
+    assert features["date"]["data_type"] == "string"
+    assert features["date"]["time_series"]["type"] == "delta"
+    assert features["date"]["time_series"]["time_feature"] is True
+    assert "delta_min" in features["date"]["time_series"]
+    assert features["name"]["data_type"] == "string"
+    assert features["name"]["time_series"] == {}
+
+
 def test_time_series_features_pandas():
     valid = SingleTableFeatureAttributes.from_json(json_path=data_path.joinpath("example_timeseries.features.json"))
 
